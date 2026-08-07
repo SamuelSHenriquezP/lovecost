@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "899258735602",
+    "project_id": "lovecost-93318",
+    "storage_bucket": "lovecost-93318.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:899258735602:android:3973455f10833b9504e96b",
+        "android_client_info": {
+          "package_name": "com.inventustechstudio.lovecost"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFDtx2pglZhkX4SV33w8cP0uNaxNk57Cs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
