@@ -1939,11 +1939,11 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                     Text(
                       isPaired
                           ? (partnerNote != null && partnerNote.isNotEmpty ? partnerNote : 'Conectados en Nido 💚')
-                          : 'Esperando pareja · Código: ${widget.inviteCode}',
+                          : 'Esperando que tu pareja se una…',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isPaired ? kTextMuted : kPrimaryColor,
-                        fontWeight: isPaired ? FontWeight.w400 : FontWeight.w600,
+                        color: isPaired ? kTextMuted : Colors.amber.shade800,
+                        fontWeight: isPaired ? FontWeight.w400 : FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -2219,6 +2219,20 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String _filterType = 'all'; // 'all', 'expense', 'income'
+  bool _disponibleExpanded = true;
+  bool _movimientosExpanded = true;
+
+  void _openAddExpenseSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddExpenseBottomSheet(
+        coupleId: widget.coupleId,
+        userName: widget.userName,
+      ),
+    );
+  }
 
   Stream<List<Expense>> _streamExpenses() {
     final now = DateTime.now();
@@ -2382,271 +2396,377 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return true;
               }).toList();
 
-              return Column(
-                children: [
-                  // Banner de Pareja y Perfil en la parte superior
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: _PartnerHeaderCard(
-                      coupleId: widget.coupleId,
-                      userId: widget.userId,
-                      userName: widget.userName,
-                      inviteCode: inviteCode,
+              final waitingForPartner = members.length < 2;
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: _PartnerHeaderCard(
+                        coupleId: widget.coupleId,
+                        userId: widget.userId,
+                        userName: widget.userName,
+                        inviteCode: inviteCode,
+                      ),
                     ),
                   ),
-
-                  // Tarjeta Principal de Presupuesto Móvil
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: Container(
-                      padding: const EdgeInsets.all(22.0),
-                      decoration: BoxDecoration(
-                        color: kSurfaceColor,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: kBorderColor, width: 1.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                  if (waitingForPartner && inviteCode.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                        child: _InviteCodeCard(inviteCode: inviteCode),
                       ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Disponible Real',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: kTextMuted,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () => _showEditBudgetDialog(context, budgetLimit),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: kBackgroundColor,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        'Meta: ${formatCurrency(budgetLimit)}',
-                                        style: const TextStyle(fontSize: 11, color: kTextMuted),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      const Icon(Icons.edit_outlined, size: 12, color: kPrimaryColor),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: _SmoothCurrencyText(
-                              value: disponibleReal,
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w900,
-                                color: disponibleReal < 0 ? kDangerColor : kTextDark,
-                                letterSpacing: -1.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TweenAnimationBuilder<double>(
-                            key: ValueKey(porcentajeGastado),
-                            tween: Tween(begin: 0.0, end: porcentajeGastado),
-                            duration: const Duration(milliseconds: 1000),
-                            curve: Curves.easeOutCubic,
-                            builder: (_, val, __) => ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: LinearProgressIndicator(
-                                value: val,
-                                backgroundColor: kBorderColor,
-                                color: porcentajeGastado >= 0.9
-                                    ? kDangerColor
-                                    : porcentajeGastado > 0.75
-                                        ? Colors.orange.shade400
-                                        : kSecondaryColor,
-                                minHeight: 8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                    ),
 
-                          // Resumen Ingresos vs Gastos
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(Icons.arrow_upward_rounded, size: 14, color: Colors.green.shade700),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Ingresos (+)',
-                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatCurrency(totalIngresos),
-                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.green.shade800),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.red.shade700),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Gastos (-)',
-                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade900),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatCurrency(totalGastos),
-                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.red.shade800),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // Alerta si los gastos consumen > 85% de los ingresos
-                          if (porcentajeGastado >= 0.85) ...[
-                            const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.shade50,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.amber.shade200),
-                              ),
+                  // Tarjeta Disponible Real (colapsable)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(18, 16, 18, _disponibleExpanded ? 18 : 14),
+                        decoration: BoxDecoration(
+                          color: kSurfaceColor,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: kBorderColor, width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                setState(() => _disponibleExpanded = !_disponibleExpanded);
+                                HapticFeedback.selectionClick();
+                              },
                               child: Row(
                                 children: [
-                                  Icon(Icons.warning_amber_rounded, size: 18, color: Colors.amber.shade900),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '¡Atención! Han gastado el ${(porcentajeGastado * 100).toInt()}% de los fondos.',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                  const Text(
+                                    'Disponible Real',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: kTextMuted,
+                                      fontWeight: FontWeight.w600,
                                     ),
+                                  ),
+                                  const Spacer(),
+                                  if (!_disponibleExpanded)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: _SmoothCurrencyText(
+                                        value: disponibleReal,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: disponibleReal < 0 ? kDangerColor : kTextDark,
+                                        ),
+                                      ),
+                                    ),
+                                  if (_disponibleExpanded)
+                                    GestureDetector(
+                                      onTap: () => _showEditBudgetDialog(context, budgetLimit),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: kBackgroundColor,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              'Meta: ${formatCurrency(budgetLimit)}',
+                                              style: const TextStyle(fontSize: 11, color: kTextMuted),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.edit_outlined, size: 12, color: kPrimaryColor),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  Icon(
+                                    _disponibleExpanded
+                                        ? Icons.keyboard_arrow_up_rounded
+                                        : Icons.keyboard_arrow_down_rounded,
+                                    color: kTextMuted,
+                                    size: 22,
                                   ),
                                 ],
                               ),
                             ),
+                            AnimatedCrossFade(
+                              firstCurve: Curves.easeOutCubic,
+                              secondCurve: Curves.easeOutCubic,
+                              sizeCurve: Curves.easeOutCubic,
+                              crossFadeState: _disponibleExpanded
+                                  ? CrossFadeState.showFirst
+                                  : CrossFadeState.showSecond,
+                              duration: const Duration(milliseconds: 220),
+                              firstChild: Column(
+                                children: [
+                                  const SizedBox(height: 6),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: _SmoothCurrencyText(
+                                      value: disponibleReal,
+                                      style: TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.w900,
+                                        color: disponibleReal < 0 ? kDangerColor : kTextDark,
+                                        letterSpacing: -1.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TweenAnimationBuilder<double>(
+                                    key: ValueKey(porcentajeGastado),
+                                    tween: Tween(begin: 0.0, end: porcentajeGastado),
+                                    duration: const Duration(milliseconds: 1000),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (_, val, __) => ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: LinearProgressIndicator(
+                                        value: val,
+                                        backgroundColor: kBorderColor,
+                                        color: porcentajeGastado >= 0.9
+                                            ? kDangerColor
+                                            : porcentajeGastado > 0.75
+                                                ? Colors.orange.shade400
+                                                : kSecondaryColor,
+                                        minHeight: 8,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.shade50,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.arrow_upward_rounded, size: 14, color: Colors.green.shade700),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Ingresos (+)',
+                                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                formatCurrency(totalIngresos),
+                                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.green.shade800),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade50,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.red.shade700),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Gastos (-)',
+                                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade900),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                formatCurrency(totalGastos),
+                                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.red.shade800),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (porcentajeGastado >= 0.85) ...[
+                                    const SizedBox(height: 14),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.shade50,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Colors.amber.shade200),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.warning_amber_rounded, size: 18, color: Colors.amber.shade900),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '¡Atención! Han gastado el ${(porcentajeGastado * 100).toInt()}% de los fondos.',
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              secondChild: const SizedBox.shrink(),
+                            ),
                           ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Encabezado de Movimientos (colapsable + botón añadir arriba)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: Column(
+                        children: [
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              setState(() => _movimientosExpanded = !_movimientosExpanded);
+                              HapticFeedback.selectionClick();
+                            },
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Movimientos${filtered.isNotEmpty ? ' (${filtered.length})' : ''}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: kTextDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  _movimientosExpanded
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  color: kTextMuted,
+                                  size: 22,
+                                ),
+                                const Spacer(),
+                                Material(
+                                  color: kPrimaryColor,
+                                  borderRadius: BorderRadius.circular(14),
+                                  elevation: 0,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: _openAddExpenseSheet,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Añadir',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AnimatedCrossFade(
+                            firstCurve: Curves.easeOutCubic,
+                            secondCurve: Curves.easeOutCubic,
+                            sizeCurve: Curves.easeOutCubic,
+                            crossFadeState: _movimientosExpanded
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+                            duration: const Duration(milliseconds: 220),
+                            firstChild: Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  _buildFilterChip('Todos', 'all'),
+                                  const SizedBox(width: 4),
+                                  _buildFilterChip('➖ Gastos', 'expense'),
+                                  const SizedBox(width: 4),
+                                  _buildFilterChip('➕ Ingresos', 'income'),
+                                ],
+                              ),
+                            ),
+                            secondChild: const SizedBox.shrink(),
+                          ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Filtros de Movimientos
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Movimientos',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: kTextDark,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            _buildFilterChip('Todos', 'all'),
-                            const SizedBox(width: 4),
-                            _buildFilterChip('➖ Gastos', 'expense'),
-                            const SizedBox(width: 4),
-                            _buildFilterChip('➕ Ingresos', 'income'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
                   // Lista de movimientos
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const _EmptyState(
-                            icon: Icons.receipt_long_outlined,
-                            title: 'Sin movimientos registrados',
-                            subtitle: 'Toca + para añadir un ingreso o un gasto en el nido.',
+                  if (_movimientosExpanded)
+                    filtered.isEmpty
+                        ? SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: _EmptyState(
+                                icon: Icons.receipt_long_outlined,
+                                title: 'Sin movimientos registrados',
+                                subtitle: 'Usa "Añadir" para registrar un ingreso o un gasto.',
+                              ),
+                            ),
                           )
-                        : ListView.builder(
-                            itemCount: filtered.length,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemBuilder: (context, index) {
-                              final ex = filtered[index];
-                              return _AnimatedListItem(
-                                index: index,
-                                child: _ExpenseCard(
-                                  expense: ex,
-                                  coupleId: widget.coupleId,
-                                  currentUserName: widget.userName,
-                                ),
-                              );
-                            },
-                          ),
-                  ),
+                        : SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final ex = filtered[index];
+                                  return _AnimatedListItem(
+                                    index: index,
+                                    child: _ExpenseCard(
+                                      expense: ex,
+                                      coupleId: widget.coupleId,
+                                      currentUserName: widget.userName,
+                                    ),
+                                  );
+                                },
+                                childCount: filtered.length,
+                              ),
+                            ),
+                          )
+                  else
+                    const SliverToBoxAdapter(child: SizedBox(height: 8)),
                 ],
               );
             },
           );
         },
-      ),
-      floatingActionButton: _PulsingFAB(
-        color: kPrimaryColor,
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => AddExpenseBottomSheet(
-              coupleId: widget.coupleId,
-              userName: widget.userName,
-            ),
-          );
-        },
-        child: const Icon(Icons.add, size: 26),
       ),
     );
   }
@@ -2960,54 +3080,64 @@ class AnalyticsScreen extends StatelessWidget {
   }
 }
 
-// Widget del banner de invitación con botón de copiar
-class _InviteBanner extends StatelessWidget {
+// Tarjeta de código de invitación (misma estética que PairingScreen)
+class _InviteCodeCard extends StatelessWidget {
   final String inviteCode;
-  final BuildContext context;
 
-  const _InviteBanner({required this.inviteCode, required this.context});
+  const _InviteCodeCard({required this.inviteCode});
+
+  void _copyCode(BuildContext context) {
+    if (inviteCode.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: inviteCode));
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Código copiado al portapapeles'),
+        backgroundColor: kSecondaryColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext outerContext) {
+  Widget build(BuildContext context) {
+    if (inviteCode.isEmpty) return const SizedBox.shrink();
+
     return Container(
-      color: kSecondaryColor.withValues(alpha: 0.1),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      width: double.infinity,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kSecondaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kSecondaryColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
         children: [
-          Expanded(
-            child: Text(
-              'Invita a tu pareja con el código: $inviteCode',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: kTextDark,
-                fontSize: 13,
-              ),
+          const Text(
+            'Comparte este código con tu pareja:',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: kTextMuted),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            inviteCode,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: kTextDark,
+              letterSpacing: 6,
             ),
           ),
-          IconButton(
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: () => _copyCode(context),
             icon: const Icon(Icons.copy_rounded, size: 16, color: kPrimaryColor),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: inviteCode));
-              HapticFeedback.lightImpact();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Código copiado'),
-                  backgroundColor: kSecondaryColor,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  margin: const EdgeInsets.all(16),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            tooltip: 'Copiar código',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            label: const Text(
+              'Copiar código',
+              style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -3098,54 +3228,116 @@ class _ExpenseCard extends StatelessWidget {
       '🥂 ¡Salud por nosotros!',
       '👏 ¡Buen movimiento!',
     ];
+    final noteController = TextEditingController();
+    String? selectedReaction;
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: kSurfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Reaccionar a este movimiento 💕',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kTextDark),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: reactions.map((r) => ActionChip(
-                label: Text(r, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                backgroundColor: kBackgroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: kBorderColor),
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: StatefulBuilder(
+          builder: (ctx, setModalState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Reaccionar a este movimiento 💕',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kTextDark),
                 ),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  final updatedReactions = Map<String, String>.from(expense.reactions);
-                  updatedReactions[currentUserName] = r;
+                const SizedBox(height: 4),
+                Text(
+                  expense.createdBy == currentUserName
+                      ? 'Deja una nota para recordar este movimiento'
+                      : 'Responde al gasto de ${expense.createdBy}',
+                  style: const TextStyle(fontSize: 12, color: kTextMuted),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: reactions.map((r) {
+                    final isSelected = selectedReaction == r;
+                    return ActionChip(
+                      label: Text(r, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      backgroundColor: isSelected ? kPrimaryColor.withValues(alpha: 0.12) : kBackgroundColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: isSelected ? kPrimaryColor : kBorderColor),
+                      ),
+                      onPressed: () => setModalState(() => selectedReaction = r),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: noteController,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Nota personal (opcional)',
+                    hintText: 'Ej: Está bien, pero la próxima lo vemos juntos 💬',
+                    prefixIcon: Icon(Icons.edit_note_outlined, size: 20, color: kTextMuted),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () async {
+                    final note = noteController.text.trim();
+                    if (selectedReaction == null && note.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('Elige una reacción o escribe una nota'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      return;
+                    }
 
-                  await FirebaseFirestore.instance
-                      .collection('couples')
-                      .doc(coupleId)
-                      .collection('expenses')
-                      .doc(expense.id)
-                      .update({'reactions': updatedReactions});
+                    final reactionText = [
+                      if (selectedReaction != null) selectedReaction,
+                      if (note.isNotEmpty) note,
+                    ].join(' · ');
 
-                  HapticFeedback.lightImpact();
-                },
-              )).toList(),
+                    Navigator.pop(ctx);
+                    final updatedReactions = Map<String, String>.from(expense.reactions);
+                    updatedReactions[currentUserName] = reactionText;
+
+                    await FirebaseFirestore.instance
+                        .collection('couples')
+                        .doc(coupleId)
+                        .collection('expenses')
+                        .doc(expense.id)
+                        .update({'reactions': updatedReactions});
+
+                    HapticFeedback.lightImpact();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Enviar respuesta', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    );
+    ).whenComplete(noteController.dispose);
   }
 
   @override
@@ -3641,8 +3833,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                   .collection('couples')
                   .doc(widget.coupleId)
                   .collection('shopping_list')
-                  .orderBy('isBought')
-                  .orderBy('date')
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -3651,7 +3841,27 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                   );
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                if (snapshot.hasError) {
+                  return _EmptyState(
+                    icon: Icons.error_outline,
+                    title: 'No se pudo cargar la lista',
+                    subtitle: snapshot.error.toString(),
+                  );
+                }
+
+                final docs = [...(snapshot.data?.docs ?? [])];
+                docs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aBought = (aData['isBought'] as bool?) ?? false;
+                  final bBought = (bData['isBought'] as bool?) ?? false;
+                  if (aBought != bBought) return aBought ? 1 : -1;
+                  final aDate =
+                      (aData['date'] as Timestamp?)?.toDate() ?? DateTime(0);
+                  final bDate =
+                      (bData['date'] as Timestamp?)?.toDate() ?? DateTime(0);
+                  return aDate.compareTo(bDate);
+                });
 
                 if (docs.isEmpty) {
                   return const _EmptyState(
