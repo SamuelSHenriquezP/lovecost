@@ -28,7 +28,7 @@ Future<void> initLocalNotifications() async {
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
     await flutterLocalNotificationsPlugin.initialize(
-      settings: initializationSettings,
+      initializationSettings,
     );
   } catch (e) {
     debugPrint('Error iniciando notificaciones locales: $e');
@@ -60,10 +60,10 @@ Future<void> showLocalNotification(String title, String body) async {
       android: androidDetails,
     );
     await flutterLocalNotificationsPlugin.show(
-      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title: title,
-      body: body,
-      notificationDetails: platformDetails,
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      platformDetails,
     );
   } catch (e) {
     debugPrint('Error mostrando notificación: $e');
