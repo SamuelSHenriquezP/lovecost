@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -10,7 +11,64 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'firebase_options.dart';
+
+// ==========================================
+// NOTIFICACIONES LOCALES Y PERMISOS
+// ==========================================
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+Future<void> initLocalNotifications() async {
+  try {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+    await flutterLocalNotificationsPlugin.initialize(
+      settings: initializationSettings,
+    );
+  } catch (e) {
+    debugPrint('Error iniciando notificaciones locales: $e');
+  }
+}
+
+Future<void> requestNotificationPermissions() async {
+  try {
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+  } catch (e) {
+    debugPrint('Error solicitando permisos de notificación: $e');
+  }
+}
+
+Future<void> showLocalNotification(String title, String body) async {
+  try {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'nido_notifications_v2',
+          'Notificaciones Nido',
+          channelDescription: 'Guiños de amor y comentarios en gastos',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+        );
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
+    await flutterLocalNotificationsPlugin.show(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: title,
+      body: body,
+      notificationDetails: platformDetails,
+    );
+  } catch (e) {
+    debugPrint('Error mostrando notificación: $e');
+  }
+}
 
 // ==========================================
 // PUNTO DE ENTRADA
@@ -18,7 +76,6 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Captura errores globales de Flutter
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
   };
@@ -30,40 +87,51 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    await initLocalNotifications();
+    await requestNotificationPermissions();
   } catch (e) {
     initError = e;
   }
 
   if (initError != null) {
-    runApp(MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: const Color(0xFFFAF7F2),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, color: Color(0xFFE57373), size: 48),
-                const SizedBox(height: 16),
-                const Text(
-                  'Error al iniciar Nido',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  initError.toString(),
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF8C827F)),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: const Color(0xFFF6F4F0),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Color(0xFFE53935),
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Error al iniciar Nido',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    initError.toString(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6B6361),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     return;
   }
 
@@ -71,17 +139,119 @@ void main() async {
 }
 
 // ==========================================
-// SISTEMA DE DISEÑO — TOKENS DE COLOR
+// SISTEMA DE DISEÑO — PALETA DE COLORES VIVOS
 // ==========================================
-const Color kBackgroundColor = Color(0xFFFAF7F2);
-const Color kPrimaryColor = Color(0xFFC97A5E);
-const Color kSecondaryColor = Color(0xFF7A9E8F);
-const Color kAccentColor = Color(0xFFE89874);
+const Color kBackgroundColor = Color(0xFFF6F4F0);
+const Color kPrimaryColor = Color(0xFFE54B2A); // Terracota vivo y cálido
+const Color kSecondaryColor = Color(0xFF00897B); // Verde esmeralda vivo
+const Color kAccentColor = Color(0xFFFF6D00); // Coral / Naranja vivo
 const Color kSurfaceColor = Color(0xFFFFFFFF);
-const Color kTextDark = Color(0xFF2C2523);
-const Color kTextMuted = Color(0xFF8C827F);
-const Color kBorderColor = Color(0xFFEFECE7);
-const Color kDangerColor = Color(0xFFE57373);
+const Color kTextDark = Color(0xFF1E1917);
+const Color kTextMuted = Color(0xFF6B6361);
+const Color kBorderColor = Color(0xFFE2DDD7);
+const Color kDangerColor = Color(0xFFE53935); // Rojo vivo
+
+const Color kExpenseColor = Color(0xFFE53935); // ROJO VIVO para gastos
+const Color kIncomeColor = Color(0xFF10B981); // VERDE VIVO para ingresos
+const Color kDisponibleColor = Color(
+  0xFF334155,
+); // Slate sobrio y elegante para Disponible Real
+
+// ==========================================
+// MODOS DE USO DE LA APP
+// ==========================================
+enum NidoUsageMode {
+  guest, // Invitado 100% local
+  individual, // Usuario logueado como Individuo (Personal)
+  couple, // Usuario logueado en Pareja
+}
+
+// ==========================================
+// STORAGE LOCAL PARA MODO INVITADO
+// ==========================================
+class LocalGuestStorage {
+  static const String _keyExpenses = 'nido_guest_expenses';
+  static const String _keyShopping = 'nido_guest_shopping';
+  static const String _keySavings = 'nido_guest_savings';
+  static const String _keyHistory = 'nido_guest_history';
+  static const String _keyBudget = 'nido_guest_budget';
+  static const String _keyCategories = 'nido_guest_categories';
+
+  static Future<double> getBudget() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_keyBudget) ?? 2000.0;
+  }
+
+  static Future<void> setBudget(double val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_keyBudget, val);
+  }
+
+  static Future<List<Map<String, dynamic>>> getExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyExpenses);
+    if (raw == null) return [];
+    final List decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> saveExpenses(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyExpenses, jsonEncode(items));
+  }
+
+  static Future<List<Map<String, dynamic>>> getShoppingList() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyShopping);
+    if (raw == null) return [];
+    final List decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> saveShoppingList(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyShopping, jsonEncode(items));
+  }
+
+  static Future<List<Map<String, dynamic>>> getSavings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keySavings);
+    if (raw == null) return [];
+    final List decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> saveSavings(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySavings, jsonEncode(items));
+  }
+
+  static Future<List<Map<String, dynamic>>> getHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyHistory);
+    if (raw == null) return [];
+    final List decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> saveHistory(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyHistory, jsonEncode(items));
+  }
+
+  static Future<List<Map<String, dynamic>>> getCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCategories);
+    if (raw == null) return [];
+    final List decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> saveCategories(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCategories, jsonEncode(items));
+  }
+}
 
 // ==========================================
 // HELPERS DE FORMATO
@@ -102,7 +272,6 @@ String formatDate(DateTime date) {
   return DateFormat('d MMM', 'es').format(date);
 }
 
-// Extension helper para mayúsculas
 extension StringExtension on String {
   String capitalize() {
     if (isEmpty) return this;
@@ -110,7 +279,6 @@ extension StringExtension on String {
   }
 }
 
-// Formateador de texto con puntos de miles (ej. 10000 -> 10.000)
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   final NumberFormat _formatter = NumberFormat.decimalPattern('es_MX');
 
@@ -144,15 +312,11 @@ double parseFormattedAmount(String input) {
   return double.tryParse(digitsOnly) ?? 0.0;
 }
 
-// Widget de texto de moneda que anima cambios suavemente sin reiniciar a $0
 class _SmoothCurrencyText extends StatefulWidget {
   final double value;
   final TextStyle style;
 
-  const _SmoothCurrencyText({
-    required this.value,
-    required this.style,
-  });
+  const _SmoothCurrencyText({required this.value, required this.style});
 
   @override
   State<_SmoothCurrencyText> createState() => _SmoothCurrencyTextState();
@@ -191,9 +355,6 @@ class _SmoothCurrencyTextState extends State<_SmoothCurrencyText> {
   }
 }
 
-// ==========================================
-// MENSAJES DE ERROR DE FIREBASE EN ESPAÑOL
-// ==========================================
 String _mapFirebaseError(dynamic e) {
   if (e is FirebaseAuthException) {
     switch (e.code) {
@@ -219,12 +380,9 @@ String _mapFirebaseError(dynamic e) {
   if (e.toString().contains('network')) {
     return 'Sin conexión a internet. Verifica tu red.';
   }
-  return 'Algo salió mal. Intenta de nuevo.'
-;}
+  return 'Algo salió mal. Intenta de nuevo.';
+}
 
-// ==========================================
-// FOTO DE PERFIL LOCAL (sin Firebase)
-// ==========================================
 class LocalProfilePhoto {
   static const String _prefKey = 'local_profile_photo_path';
 
@@ -261,6 +419,207 @@ class LocalProfilePhoto {
 }
 
 // ==========================================
+// MODELOS DE DATOS
+// ==========================================
+class Expense {
+  final String id;
+  final String type; // 'expense' o 'income'
+  final double amount;
+  final String description;
+  final String category;
+  final String sourceOrDestination;
+  final String createdBy;
+  final DateTime date;
+  final Map<String, String> reactions;
+
+  const Expense({
+    required this.id,
+    this.type = 'expense',
+    required this.amount,
+    required this.description,
+    required this.category,
+    this.sourceOrDestination = 'General',
+    required this.createdBy,
+    required this.date,
+    this.reactions = const {},
+  });
+
+  bool get isIncome => type == 'income';
+
+  factory Expense.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final rawReactions = data['reactions'] as Map<String, dynamic>? ?? {};
+    final reactions = rawReactions.map((k, v) => MapEntry(k, v.toString()));
+
+    return Expense(
+      id: doc.id,
+      type: (data['type'] as String?) ?? 'expense',
+      amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
+      description: (data['description'] as String?) ?? '',
+      category: (data['category'] as String?) ?? 'Otros',
+      sourceOrDestination:
+          (data['sourceOrDestination'] as String?) ??
+          (data['paymentMethod'] as String?) ??
+          'General',
+      createdBy: (data['createdBy'] as String?) ?? '',
+      date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      reactions: reactions,
+    );
+  }
+
+  factory Expense.fromJson(Map<String, dynamic> data) {
+    final rawReactions = data['reactions'] as Map<String, dynamic>? ?? {};
+    final reactions = rawReactions.map((k, v) => MapEntry(k, v.toString()));
+
+    return Expense(
+      id:
+          (data['id'] as String?) ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      type: (data['type'] as String?) ?? 'expense',
+      amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
+      description: (data['description'] as String?) ?? '',
+      category: (data['category'] as String?) ?? 'Otros',
+      sourceOrDestination:
+          (data['sourceOrDestination'] as String?) ?? 'General',
+      createdBy: (data['createdBy'] as String?) ?? 'Invitado',
+      date: DateTime.tryParse(data['date'] as String? ?? '') ?? DateTime.now(),
+      reactions: reactions,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type,
+    'amount': amount,
+    'description': description,
+    'category': category,
+    'sourceOrDestination': sourceOrDestination,
+    'createdBy': createdBy,
+    'date': date.toIso8601String(),
+    'reactions': reactions,
+  };
+}
+
+class CustomCategory {
+  final String id;
+  final String name;
+  final String emoji;
+  final int colorHex;
+  final String type;
+
+  CustomCategory({
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.colorHex,
+    required this.type,
+  });
+
+  factory CustomCategory.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return CustomCategory(
+      id: doc.id,
+      name: (data['name'] as String?) ?? 'Categoría',
+      emoji: (data['emoji'] as String?) ?? '🏷️',
+      colorHex: (data['colorHex'] as num?)?.toInt() ?? 0xFF00897B,
+      type: (data['type'] as String?) ?? 'expense',
+    );
+  }
+
+  factory CustomCategory.fromJson(Map<String, dynamic> data) {
+    return CustomCategory(
+      id:
+          (data['id'] as String?) ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      name: (data['name'] as String?) ?? 'Categoría',
+      emoji: (data['emoji'] as String?) ?? '🏷️',
+      colorHex: (data['colorHex'] as num?)?.toInt() ?? 0xFF00897B,
+      type: (data['type'] as String?) ?? 'expense',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'emoji': emoji,
+    'colorHex': colorHex,
+    'type': type,
+  };
+}
+
+class HistoryPeriod {
+  final String id;
+  final String title;
+  final DateTime startDate;
+  final DateTime endDate;
+  final double totalIncome;
+  final double totalExpense;
+  final double balance;
+  final String closedBy;
+  final DateTime createdAt;
+
+  HistoryPeriod({
+    required this.id,
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    required this.totalIncome,
+    required this.totalExpense,
+    required this.balance,
+    required this.closedBy,
+    required this.createdAt,
+  });
+
+  factory HistoryPeriod.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return HistoryPeriod(
+      id: doc.id,
+      title: (data['title'] as String?) ?? 'Periodo Pasado',
+      startDate: (data['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      endDate: (data['endDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      totalIncome: ((data['totalIncome'] as num?) ?? 0.0).toDouble(),
+      totalExpense: ((data['totalExpense'] as num?) ?? 0.0).toDouble(),
+      balance: ((data['balance'] as num?) ?? 0.0).toDouble(),
+      closedBy: (data['closedBy'] as String?) ?? 'Nido',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  factory HistoryPeriod.fromJson(Map<String, dynamic> data) {
+    return HistoryPeriod(
+      id:
+          (data['id'] as String?) ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      title: (data['title'] as String?) ?? 'Periodo Pasado',
+      startDate:
+          DateTime.tryParse(data['startDate'] as String? ?? '') ??
+          DateTime.now(),
+      endDate:
+          DateTime.tryParse(data['endDate'] as String? ?? '') ?? DateTime.now(),
+      totalIncome: ((data['totalIncome'] as num?) ?? 0.0).toDouble(),
+      totalExpense: ((data['totalExpense'] as num?) ?? 0.0).toDouble(),
+      balance: ((data['balance'] as num?) ?? 0.0).toDouble(),
+      closedBy: (data['closedBy'] as String?) ?? 'Nido',
+      createdAt:
+          DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'startDate': startDate.toIso8601String(),
+    'endDate': endDate.toIso8601String(),
+    'totalIncome': totalIncome,
+    'totalExpense': totalExpense,
+    'balance': balance,
+    'closedBy': closedBy,
+    'createdAt': createdAt.toIso8601String(),
+  };
+}
+
+// ==========================================
 // APP PRINCIPAL
 // ==========================================
 class NidoApp extends StatelessWidget {
@@ -273,7 +632,7 @@ class NidoApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Nido — Finanzas en Pareja',
+      title: 'Nido — Finanzas',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -337,12 +696,12 @@ class NidoApp extends StatelessWidget {
         ),
         navigationBarTheme: NavigationBarThemeData(
           backgroundColor: kSurfaceColor,
-          indicatorColor: kPrimaryColor.withValues(alpha: 0.12),
+          indicatorColor: kPrimaryColor.withValues(alpha: 0.15),
           elevation: 0,
           labelTextStyle: WidgetStateProperty.all(
             const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: kTextDark,
             ),
           ),
@@ -354,7 +713,7 @@ class NidoApp extends StatelessWidget {
 }
 
 // ==========================================
-// SPLASH SCREEN LIMPIA Y DIRECTA
+// SPLASH SCREEN
 // ==========================================
 class NidoSplash extends StatefulWidget {
   const NidoSplash({super.key});
@@ -362,14 +721,18 @@ class NidoSplash extends StatefulWidget {
   State<NidoSplash> createState() => _NidoSplashState();
 }
 
-class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateMixin {
+class _NidoSplashState extends State<NidoSplash>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _start();
   }
@@ -381,8 +744,9 @@ class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateM
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 250),
-          pageBuilder: (_, __, ___) => const AuthGate(),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+          pageBuilder: (context, anim1, anim2) => const AuthGate(),
+          transitionsBuilder: (context, anim, anim2, child) =>
+              FadeTransition(opacity: anim, child: child),
         ),
       );
     }
@@ -411,9 +775,9 @@ class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateM
                   borderRadius: BorderRadius.circular(26),
                   boxShadow: [
                     BoxShadow(
-                      color: kPrimaryColor.withValues(alpha: 0.22),
-                      blurRadius: 18,
-                      offset: const Offset(0, 5),
+                      color: kPrimaryColor.withValues(alpha: 0.3),
+                      blurRadius: 22,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -422,9 +786,13 @@ class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateM
                   child: Image.asset(
                     'assets/images/nido_icon.png',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       decoration: const BoxDecoration(color: kPrimaryColor),
-                      child: const Icon(Icons.favorite, size: 48, color: Colors.white),
+                      child: const Icon(
+                        Icons.favorite,
+                        size: 48,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -433,7 +801,7 @@ class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateM
               const Text(
                 'Nido',
                 style: TextStyle(
-                  fontSize: 34,
+                  fontSize: 36,
                   fontWeight: FontWeight.w900,
                   color: kTextDark,
                   letterSpacing: -1.2,
@@ -441,11 +809,11 @@ class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateM
               ),
               const SizedBox(height: 4),
               const Text(
-                'Finanzas en pareja ♥',
+                'Tus finanzas en armonía 🌿',
                 style: TextStyle(
                   fontSize: 14,
                   color: kTextMuted,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -457,7 +825,7 @@ class _NidoSplashState extends State<NidoSplash> with SingleTickerProviderStateM
 }
 
 // ==========================================
-// ANIMACIONES PREMIUM — ITEM ESCALONADO EN LISTA
+// ANIMACIONES PREMIUM EN LISTA
 // ==========================================
 class _AnimatedListItem extends StatefulWidget {
   final Widget child;
@@ -483,17 +851,22 @@ class _AnimatedListItemState extends State<_AnimatedListItem>
       duration: const Duration(milliseconds: 450),
     );
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.28), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.28),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
 
-    final delay = (widget.index * 65).clamp(0, 400);
+    final delay = (widget.index * 50).clamp(0, 350);
     Future.delayed(Duration(milliseconds: delay), () {
       if (mounted) _ctrl.forward();
     });
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -505,132 +878,7 @@ class _AnimatedListItemState extends State<_AnimatedListItem>
 }
 
 // ==========================================
-// FAB PULSANTE CON GLOW
-// ==========================================
-class _PulsingFAB extends StatefulWidget {
-  final VoidCallback onPressed;
-  final Widget child;
-  final Color color;
-  final Color glowColor;
-
-  const _PulsingFAB({
-    required this.onPressed,
-    required this.child,
-    required this.color,
-    Color? glowColor,
-  }) : glowColor = glowColor ?? color;
-
-  @override
-  State<_PulsingFAB> createState() => _PulsingFABState();
-}
-
-class _PulsingFABState extends State<_PulsingFAB>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-  late Animation<double> _glow;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
-    _scale = Tween<double>(begin: 1.0, end: 1.07)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-    _glow = Tween<double>(begin: 5.0, end: 18.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, child) => Transform.scale(
-        scale: _scale.value,
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: widget.glowColor.withValues(alpha: 0.45),
-                blurRadius: _glow.value,
-                spreadRadius: _glow.value * 0.25,
-              ),
-            ],
-          ),
-          child: FloatingActionButton(
-            heroTag: 'main_fab',
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              widget.onPressed();
-            },
-            backgroundColor: widget.color,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: widget.child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==========================================
-// MODELO DE DATOS (MOVIMIENTOS / GASTOS / INGRESOS)
-// ==========================================
-
-class Expense {
-  final String id;
-  final String type; // 'expense' o 'income'
-  final double amount;
-  final String description;
-  final String category;
-  final String sourceOrDestination;
-  final String createdBy;
-  final DateTime date;
-  final Map<String, String> reactions;
-
-  const Expense({
-    required this.id,
-    this.type = 'expense',
-    required this.amount,
-    required this.description,
-    required this.category,
-    this.sourceOrDestination = 'General',
-    required this.createdBy,
-    required this.date,
-    this.reactions = const {},
-  });
-
-  bool get isIncome => type == 'income';
-
-  factory Expense.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final rawReactions = data['reactions'] as Map<String, dynamic>? ?? {};
-    final reactions = rawReactions.map((k, v) => MapEntry(k, v.toString()));
-
-    return Expense(
-      id: doc.id,
-      type: (data['type'] as String?) ?? 'expense',
-      amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
-      description: (data['description'] as String?) ?? '',
-      category: (data['category'] as String?) ?? 'Otros',
-      sourceOrDestination: (data['sourceOrDestination'] as String?) ?? (data['paymentMethod'] as String?) ?? 'General',
-      createdBy: (data['createdBy'] as String?) ?? '',
-      date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      reactions: reactions,
-    );
-  }
-}
-
-// ==========================================
-// GATES DE FLUJO
+// GATES DE FLUJO DE USUARIO
 // ==========================================
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -670,14 +918,24 @@ class PairingGate extends StatelessWidget {
         if (snapshot.hasData && snapshot.data!.exists) {
           final userData = snapshot.data!.data() as Map<String, dynamic>?;
           final String? coupleId = userData?['coupleId'] as String?;
-          final String userName =
-              (userData?['name'] as String?) ?? 'Usuario';
+          final String? usageModeStr = userData?['usageMode'] as String?;
+          final String userName = (userData?['name'] as String?) ?? 'Usuario';
+
+          if (usageModeStr == 'individual') {
+            return MainNavigation(
+              coupleId: 'personal_$userId',
+              userId: userId,
+              userName: userName,
+              mode: NidoUsageMode.individual,
+            );
+          }
 
           if (coupleId != null && coupleId.isNotEmpty) {
             return MainNavigation(
               coupleId: coupleId,
               userId: userId,
               userName: userName,
+              mode: NidoUsageMode.couple,
             );
           }
         }
@@ -704,11 +962,8 @@ class _LoadingScaffold extends StatelessWidget {
                 'assets/images/nido_icon.png',
                 width: 64,
                 height: 64,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.favorite,
-                  size: 48,
-                  color: kPrimaryColor,
-                ),
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.favorite, size: 48, color: kPrimaryColor),
               ),
             ),
             const SizedBox(height: 20),
@@ -728,7 +983,7 @@ class _LoadingScaffold extends StatelessWidget {
 }
 
 // ==========================================
-// PANTALLA DE AUTENTICACIÓN
+// PANTALLA DE AUTENTICACIÓN & MODO INVITADO
 // ==========================================
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -788,11 +1043,12 @@ class _AuthScreenState extends State<AuthScreen>
             .collection('users')
             .doc(credential.user!.uid)
             .set({
-          'name': name,
-          'email': email,
-          'coupleId': null,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+              'name': name,
+              'email': email,
+              'coupleId': null,
+              'usageMode': 'pending',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
       } else {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
@@ -806,6 +1062,20 @@ class _AuthScreenState extends State<AuthScreen>
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _continuarComoInvitado() {
+    HapticFeedback.mediumImpact();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const MainNavigation(
+          coupleId: 'guest_local',
+          userId: 'guest_user',
+          userName: 'Invitado',
+          mode: NidoUsageMode.guest,
+        ),
+      ),
+    );
   }
 
   void _showSnackbar(String message, {bool isError = false}) {
@@ -838,36 +1108,36 @@ class _AuthScreenState extends State<AuthScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo animado de Nido
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.elasticOut,
-                      builder: (_, val, child) => Transform.scale(scale: val, child: child),
-                      child: Center(
-                        child: Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: kPrimaryColor.withValues(alpha: 0.25),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Image.asset(
-                              'assets/images/nido_icon.png',
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                decoration: const BoxDecoration(color: kPrimaryColor),
-                                child: const Icon(Icons.favorite, size: 44, color: Colors.white),
-                              ),
+                    Center(
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kPrimaryColor.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
                             ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: Image.asset(
+                            'assets/images/nido_icon.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  decoration: const BoxDecoration(
+                                    color: kPrimaryColor,
+                                  ),
+                                  child: const Icon(
+                                    Icons.favorite,
+                                    size: 44,
+                                    color: Colors.white,
+                                  ),
+                                ),
                           ),
                         ),
                       ),
@@ -885,17 +1155,16 @@ class _AuthScreenState extends State<AuthScreen>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Tu hogar financiero en pareja ♥',
+                      'Tus finanzas en armonía 🌿',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         color: kTextMuted,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 40),
 
-                    // Campo de nombre (solo registro)
                     AnimatedSize(
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeOut,
@@ -904,8 +1173,7 @@ class _AuthScreenState extends State<AuthScreen>
                               children: [
                                 TextFormField(
                                   controller: _nameController,
-                                  textCapitalization:
-                                      TextCapitalization.words,
+                                  textCapitalization: TextCapitalization.words,
                                   decoration: const InputDecoration(
                                     labelText: 'Tu nombre',
                                     prefixIcon: Icon(
@@ -916,8 +1184,8 @@ class _AuthScreenState extends State<AuthScreen>
                                   ),
                                   validator: (v) =>
                                       (v == null || v.trim().isEmpty)
-                                          ? 'Ingresa tu nombre'
-                                          : null,
+                                      ? 'Ingresa tu nombre'
+                                      : null,
                                 ),
                                 const SizedBox(height: 16),
                               ],
@@ -925,7 +1193,6 @@ class _AuthScreenState extends State<AuthScreen>
                           : const SizedBox.shrink(),
                     ),
 
-                    // Email
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -949,7 +1216,6 @@ class _AuthScreenState extends State<AuthScreen>
                     ),
                     const SizedBox(height: 16),
 
-                    // Contraseña
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -969,7 +1235,8 @@ class _AuthScreenState extends State<AuthScreen>
                             color: kTextMuted,
                           ),
                           onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       validator: (v) {
@@ -982,9 +1249,8 @@ class _AuthScreenState extends State<AuthScreen>
                         return null;
                       },
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
-                    // Botón principal
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       child: _isLoading
@@ -1033,6 +1299,48 @@ class _AuthScreenState extends State<AuthScreen>
                         ),
                       ),
                     ),
+
+                    const SizedBox(height: 20),
+                    const Row(
+                      children: [
+                        Expanded(child: Divider(color: kBorderColor)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'O bien',
+                            style: TextStyle(color: kTextMuted, fontSize: 12),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: kBorderColor)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // BOTÓN CONTINUAR COMO INVITADO
+                    ElevatedButton.icon(
+                      onPressed: _continuarComoInvitado,
+                      icon: const Icon(Icons.person_pin_outlined, size: 20),
+                      label: const Text(
+                        'Usar como Invitado (100% Local)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kSurfaceColor,
+                        foregroundColor: kSecondaryColor,
+                        elevation: 0,
+                        side: const BorderSide(
+                          color: kSecondaryColor,
+                          width: 1.5,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1045,7 +1353,7 @@ class _AuthScreenState extends State<AuthScreen>
 }
 
 // ==========================================
-// PANTALLA DE VINCULACIÓN DE PAREJA
+// SELECCIÓN DE MODO: PAREJA VS INDIVIDUO (PERSONAL)
 // ==========================================
 class PairingScreen extends StatefulWidget {
   final String userId;
@@ -1071,10 +1379,40 @@ class _PairingScreenState extends State<PairingScreen> {
     return (random.nextInt(900000) + 100000).toString();
   }
 
-  Future<void> _crearGrupo() async {
+  Future<void> _usarComoIndividuo() async {
     setState(() => _isLoading = true);
     try {
-      // Generar código único
+      final personalRef = FirebaseFirestore.instance
+          .collection('couples')
+          .doc('personal_${widget.userId}');
+
+      await personalRef.set({
+        'members': [widget.userId],
+        'invite_code': 'PERSONAL',
+        'budget_limit': 2000.0,
+        'resetDay': 1,
+        'resetMode': 'monthly',
+        'isIndividual': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({
+            'coupleId': 'personal_${widget.userId}',
+            'usageMode': 'individual',
+          });
+    } catch (e) {
+      _showError('Error al activar modo personal.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _crearGrupoPareja() async {
+    setState(() => _isLoading = true);
+    try {
       String code;
       bool isUnique = false;
       do {
@@ -1087,20 +1425,22 @@ class _PairingScreenState extends State<PairingScreen> {
         isUnique = check.docs.isEmpty;
       } while (!isUnique);
 
-      final coupleRef =
-          FirebaseFirestore.instance.collection('couples').doc();
+      final coupleRef = FirebaseFirestore.instance.collection('couples').doc();
 
       await coupleRef.set({
         'members': [widget.userId],
         'invite_code': code,
-        'budget_limit': 1000.0,
+        'budget_limit': 2000.0,
+        'resetDay': 1,
+        'resetMode': 'monthly',
+        'isIndividual': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
-          .update({'coupleId': coupleRef.id});
+          .update({'coupleId': coupleRef.id, 'usageMode': 'couple'});
 
       if (mounted) {
         setState(() {
@@ -1108,13 +1448,13 @@ class _PairingScreenState extends State<PairingScreen> {
         });
       }
     } catch (e) {
-      if (mounted) _showError('Error al crear grupo. Intenta de nuevo.');
+      if (mounted) _showError('Error al crear espacio en pareja.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _unirseGrupo() async {
+  Future<void> _unirseGrupoPareja() async {
     final code = _codeController.text.trim();
     if (code.length != 6 || int.tryParse(code) == null) {
       _showError('El código debe tener exactamente 6 dígitos');
@@ -1135,16 +1475,17 @@ class _PairingScreenState extends State<PairingScreen> {
       }
 
       final coupleDoc = query.docs.first;
-      final members =
-          List<String>.from(coupleDoc.data()['members'] as List? ?? []);
+      final members = List<String>.from(
+        coupleDoc.data()['members'] as List? ?? [],
+      );
 
       if (members.contains(widget.userId)) {
-        _showError('Ya perteneces a este grupo.');
+        _showError('Ya perteneces a este espacio.');
         return;
       }
 
       if (members.length >= 2) {
-        _showError('Este grupo ya tiene dos integrantes.');
+        _showError('Este espacio en pareja ya tiene dos integrantes.');
         return;
       }
 
@@ -1154,7 +1495,7 @@ class _PairingScreenState extends State<PairingScreen> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
-          .update({'coupleId': coupleDoc.id});
+          .update({'coupleId': coupleDoc.id, 'usageMode': 'couple'});
     } catch (e) {
       if (mounted) _showError('Error al unirse. Intenta de nuevo.');
     } finally {
@@ -1183,8 +1524,7 @@ class _PairingScreenState extends State<PairingScreen> {
         content: const Text('Código copiado al portapapeles'),
         backgroundColor: kSecondaryColor,
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 2),
       ),
@@ -1195,7 +1535,7 @@ class _PairingScreenState extends State<PairingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Comenzar en pareja'),
+        title: const Text('¿Cómo deseas usar Nido?'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_outlined, size: 20),
@@ -1215,9 +1555,9 @@ class _PairingScreenState extends State<PairingScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(
-                    'Empiecen a construir',
+                    'Selecciona tu modo',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 22,
@@ -1227,32 +1567,102 @@ class _PairingScreenState extends State<PairingScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Crea un espacio común o únete si tu pareja ya lo creó.',
+                    'Puedes usar Nido para gestionar tus finanzas personales como individuo o conectar en pareja.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: kTextMuted),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
 
-                  // Si ya creó un grupo, mostrar el código
+                  // OPCIÓN MODO INDIVIDUO PERSONAL
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: kSurfaceColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: kBorderColor, width: 1.2),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.person_rounded,
+                          color: kSecondaryColor,
+                          size: 36,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Modo Individuo (Personal)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: kTextDark,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Gestiona tus propios ingresos, gastos y metas personales en la nube.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: kTextMuted),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _usarComoIndividuo,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kSecondaryColor,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Usar como Individuo 👤',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  const Row(
+                    children: [
+                      Expanded(child: Divider(color: kBorderColor)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'O EN PAREJA',
+                          style: TextStyle(
+                            color: kTextMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: kBorderColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
                   if (_myInviteCode != null) ...[
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: kSecondaryColor.withValues(alpha: 0.08),
+                        color: kPrimaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: kSecondaryColor.withValues(alpha: 0.3),
+                          color: kPrimaryColor.withValues(alpha: 0.4),
                         ),
                       ),
                       child: Column(
                         children: [
                           const Text(
-                            '¡Grupo creado! Comparte este código con tu pareja:',
+                            '¡Espacio en pareja creado! Comparte este código:',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: kTextMuted,
-                            ),
+                            style: TextStyle(fontSize: 13, color: kTextMuted),
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -1284,19 +1694,9 @@ class _PairingScreenState extends State<PairingScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Esperando que tu pareja se una...',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: kTextMuted,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
                   ] else ...[
-                    // Botón crear grupo
                     ElevatedButton(
-                      onPressed: _crearGrupo,
+                      onPressed: _crearGrupoPareja,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimaryColor,
                         foregroundColor: Colors.white,
@@ -1307,27 +1707,12 @@ class _PairingScreenState extends State<PairingScreen> {
                         ),
                       ),
                       child: const Text(
-                        'Crear nuevo espacio compartido',
+                        'Crear Espacio en Pareja 👥',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    const Row(
-                      children: [
-                        Expanded(child: Divider(color: kBorderColor)),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'O',
-                            style: TextStyle(color: kTextMuted, fontSize: 13),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: kBorderColor)),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 16),
 
-                    // Unirse con código
                     TextField(
                       controller: _codeController,
                       keyboardType: TextInputType.number,
@@ -1345,9 +1730,9 @@ class _PairingScreenState extends State<PairingScreen> {
                         hintText: '000000',
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     ElevatedButton(
-                      onPressed: _unirseGrupo,
+                      onPressed: _unirseGrupoPareja,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kSurfaceColor,
                         foregroundColor: kPrimaryColor,
@@ -1362,7 +1747,7 @@ class _PairingScreenState extends State<PairingScreen> {
                         ),
                       ),
                       child: const Text(
-                        'Unirse con código',
+                        'Unirse con Código 🔗',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -1375,9 +1760,14 @@ class _PairingScreenState extends State<PairingScreen> {
 }
 
 // ==========================================
-// MODAL DE PERFIL Y CONEXIÓN DE PAREJA
+// MODAL DE PERFIL Y COMPLEMENTOS
 // ==========================================
-Future<void> showProfileModal(BuildContext context, String userId, String coupleId, String userName) {
+Future<void> showProfileModal(
+  BuildContext context,
+  String userId,
+  String coupleId,
+  String userName,
+) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -1390,7 +1780,11 @@ Future<void> showProfileModal(BuildContext context, String userId, String couple
   );
 }
 
-void _showSendPingModalGlobal(BuildContext context, String coupleId, String userName) {
+void _showSendPingModalGlobal(
+  BuildContext context,
+  String coupleId,
+  String userName,
+) {
   final pings = [
     '❤️ Te quiero mucho',
     '☕ ¿Un cafecito juntos?',
@@ -1399,83 +1793,190 @@ void _showSendPingModalGlobal(BuildContext context, String coupleId, String user
     '✈️ Pensando en nuestras vacaciones',
     '🤗 Un abrazo apretado',
     '🥂 ¡Salud por nuestro nido!',
+    '🌹 Gracias por estar a mi lado',
   ];
+
+  final customPingController = TextEditingController();
 
   showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     backgroundColor: kSurfaceColor,
     builder: (ctx) => Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.favorite, color: kPrimaryColor, size: 22),
-              const SizedBox(width: 8),
-              const Text(
-                'Enviar Guiño de Amor 💕',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextDark),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Envia un mensaje instantáneo a la pantalla de tu pareja:',
-            style: TextStyle(color: kTextMuted, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: pings.map((p) => ActionChip(
-              avatar: const Icon(Icons.favorite_rounded, size: 14, color: kPrimaryColor),
-              label: Text(p, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              backgroundColor: kBackgroundColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: kBorderColor),
-              ),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await FirebaseFirestore.instance
-                    .collection('couples')
-                    .doc(coupleId)
-                    .collection('pings')
-                    .add({
-                  'message': p,
-                  'createdBy': userName,
-                  'date': Timestamp.now(),
-                });
-                HapticFeedback.mediumImpact();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('✨ Guiño enviado: $p'),
-                      backgroundColor: kSecondaryColor,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      margin: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.favorite, color: kPrimaryColor, size: 24),
+                const SizedBox(width: 8),
+                const Text(
+                  'Enviar Guiño de Amor 💕',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kTextDark,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Selecciona un mensaje rápido o escribe tu guiño personalizado:',
+              style: TextStyle(color: kTextMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: pings
+                  .map(
+                    (p) => ActionChip(
+                      avatar: const Icon(
+                        Icons.favorite_rounded,
+                        size: 14,
+                        color: kPrimaryColor,
+                      ),
+                      label: Text(
+                        p,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      backgroundColor: kBackgroundColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: const BorderSide(color: kBorderColor),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await FirebaseFirestore.instance
+                            .collection('couples')
+                            .doc(coupleId)
+                            .collection('pings')
+                            .add({
+                              'message': p,
+                              'createdBy': userName,
+                              'date': Timestamp.now(),
+                            });
+                        HapticFeedback.mediumImpact();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✨ Guiño enviado: $p'),
+                              backgroundColor: kSecondaryColor,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              margin: const EdgeInsets.all(16),
+                            ),
+                          );
+                        }
+                      },
                     ),
-                  );
-                }
-              },
-            )).toList(),
-          ),
-          const SizedBox(height: 16),
-        ],
+                  )
+                  .toList(),
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(color: kBorderColor),
+            const SizedBox(height: 12),
+
+            const Text(
+              '✍️ Escribir guiño personalizado:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: kTextDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: customPingController,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      hintText: 'Ej: ¡Te amo mucho! Pasa un hermoso día 💕',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    final text = customPingController.text.trim();
+                    if (text.isEmpty) return;
+
+                    Navigator.pop(ctx);
+                    await FirebaseFirestore.instance
+                        .collection('couples')
+                        .doc(coupleId)
+                        .collection('pings')
+                        .add({
+                          'message': '💌 $text',
+                          'createdBy': userName,
+                          'date': Timestamp.now(),
+                        });
+                    HapticFeedback.mediumImpact();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✨ Guiño enviado: $text'),
+                          backgroundColor: kSecondaryColor,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.send_rounded, size: 18),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     ),
-  );
+  ).whenComplete(customPingController.dispose);
 }
 
 class _ProfileBottomSheet extends StatefulWidget {
@@ -1503,7 +2004,20 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
   bool _loaded = false;
   String? _localPhotoPath;
 
-  static const List<String> _emojis = ['🦊', '🌸', '🐻', '🐰', '🐥', '☕', '🍕', '🚀', '🐱', '🐼', '🦁', '🥑'];
+  static const List<String> _emojis = [
+    '🦊',
+    '🌸',
+    '🐻',
+    '🐰',
+    '🐥',
+    '☕',
+    '🍕',
+    '🚀',
+    '🐱',
+    '🐼',
+    '🦁',
+    '🥑',
+  ];
 
   @override
   void initState() {
@@ -1513,17 +2027,23 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
 
   Future<void> _loadProfileData() async {
     try {
-      // Cargar foto local (sin Firebase)
       _localPhotoPath = await LocalProfilePhoto.getPhotoPath();
 
-      // Cargar datos de Firestore (solo una vez al abrir el modal)
-      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        _aliasController.text = (data['name'] as String?) ?? widget.currentUserName;
-        _birthdayController.text = (data['birthday'] as String?) ?? '';
-        _noteController.text = (data['statusNote'] as String?) ?? '';
-        _selectedEmoji = (data['avatarEmoji'] as String?) ?? '🦊';
+      if (!widget.coupleId.startsWith('guest')) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .get();
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          _aliasController.text =
+              (data['name'] as String?) ?? widget.currentUserName;
+          _birthdayController.text = (data['birthday'] as String?) ?? '';
+          _noteController.text = (data['statusNote'] as String?) ?? '';
+          _selectedEmoji = (data['avatarEmoji'] as String?) ?? '🦊';
+        } else {
+          _aliasController.text = widget.currentUserName;
+        }
       } else {
         _aliasController.text = widget.currentUserName;
       }
@@ -1544,7 +2064,10 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir la galería'), backgroundColor: kDangerColor),
+          const SnackBar(
+            content: Text('No se pudo abrir la galería'),
+            backgroundColor: kDangerColor,
+          ),
         );
       }
     }
@@ -1558,23 +2081,32 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
   Future<void> _saveProfile() async {
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(widget.userId).set({
-        'name': _aliasController.text.trim().isEmpty ? widget.currentUserName : _aliasController.text.trim(),
-        'birthday': _birthdayController.text.trim(),
-        'statusNote': _noteController.text.trim(),
-        'avatarEmoji': _selectedEmoji,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      if (!widget.coupleId.startsWith('guest')) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .set({
+              'name': _aliasController.text.trim().isEmpty
+                  ? widget.currentUserName
+                  : _aliasController.text.trim(),
+              'birthday': _birthdayController.text.trim(),
+              'statusNote': _noteController.text.trim(),
+              'avatarEmoji': _selectedEmoji,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+      }
 
       HapticFeedback.mediumImpact();
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('✨ Perfil en Nido actualizado'),
+            content: const Text('✨ Perfil actualizado'),
             backgroundColor: kSecondaryColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -1582,7 +2114,10 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al guardar perfil'), backgroundColor: kDangerColor),
+          const SnackBar(
+            content: Text('Error al guardar perfil'),
+            backgroundColor: kDangerColor,
+          ),
         );
       }
     } finally {
@@ -1621,8 +2156,12 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                 const Icon(Icons.face_outlined, color: kPrimaryColor, size: 24),
                 const SizedBox(width: 8),
                 const Text(
-                  'Perfil en el Nido 🌿',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextDark),
+                  'Mi Perfil 🌿',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kTextDark,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -1633,9 +2172,13 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
             ),
             const SizedBox(height: 16),
             if (!_loaded)
-              const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: kPrimaryColor)))
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: kPrimaryColor),
+                ),
+              )
             else ...[
-              // ---- FOTO DE PERFIL LOCAL ----
               Center(
                 child: Column(
                   children: [
@@ -1649,7 +2192,7 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                             height: 96,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: kPrimaryColor.withValues(alpha: 0.1),
+                              color: kPrimaryColor.withValues(alpha: 0.12),
                               border: Border.all(color: kBorderColor, width: 2),
                             ),
                             clipBehavior: Clip.antiAlias,
@@ -1657,12 +2200,21 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                                 ? Image.file(
                                     File(_localPhotoPath!),
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Center(
-                                      child: Text(_selectedEmoji, style: const TextStyle(fontSize: 42)),
-                                    ),
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Center(
+                                          child: Text(
+                                            _selectedEmoji,
+                                            style: const TextStyle(
+                                              fontSize: 42,
+                                            ),
+                                          ),
+                                        ),
                                   )
                                 : Center(
-                                    child: Text(_selectedEmoji, style: const TextStyle(fontSize: 42)),
+                                    child: Text(
+                                      _selectedEmoji,
+                                      style: const TextStyle(fontSize: 42),
+                                    ),
                                   ),
                           ),
                           Container(
@@ -1671,7 +2223,11 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                               color: kPrimaryColor,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
                           ),
                         ],
                       ),
@@ -1680,7 +2236,11 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                     if (_localPhotoPath != null)
                       TextButton.icon(
                         onPressed: _removePhoto,
-                        icon: const Icon(Icons.delete_outline, size: 14, color: kTextMuted),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 14,
+                          color: kTextMuted,
+                        ),
                         label: const Text(
                           'Quitar foto',
                           style: TextStyle(fontSize: 12, color: kTextMuted),
@@ -1689,14 +2249,23 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                     else
                       Text(
                         'Toca para elegir foto de galería',
-                        style: TextStyle(fontSize: 11, color: kTextMuted.withValues(alpha: 0.7)),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: kTextMuted.withValues(alpha: 0.7),
+                        ),
                       ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              // ---- EMOJI AVATAR (se muestra si no hay foto) ----
-              const Text('Avatar Emoji:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kTextMuted)),
+              const Text(
+                'Avatar Emoji:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: kTextMuted,
+                ),
+              ),
               const SizedBox(height: 8),
               SizedBox(
                 height: 48,
@@ -1711,13 +2280,23 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSel ? kPrimaryColor.withValues(alpha: 0.15) : kBackgroundColor,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: isSel ? kPrimaryColor : kBorderColor, width: isSel ? 1.8 : 1.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        child: Center(child: Text(em, style: const TextStyle(fontSize: 22))),
+                        decoration: BoxDecoration(
+                          color: isSel
+                              ? kPrimaryColor.withValues(alpha: 0.15)
+                              : kBackgroundColor,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSel ? kPrimaryColor : kBorderColor,
+                            width: isSel ? 1.8 : 1.0,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(em, style: const TextStyle(fontSize: 22)),
+                        ),
                       ),
                     );
                   },
@@ -1728,7 +2307,11 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                 controller: _aliasController,
                 decoration: const InputDecoration(
                   labelText: 'Tu Nombre / Apodo',
-                  prefixIcon: Icon(Icons.person_outline, size: 20, color: kTextMuted),
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    size: 20,
+                    color: kTextMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1737,7 +2320,11 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Cumpleaños / Aniversario (Opcional)',
                   hintText: 'Ej: 14 de Febrero',
-                  prefixIcon: Icon(Icons.cake_outlined, size: 20, color: kTextMuted),
+                  prefixIcon: Icon(
+                    Icons.cake_outlined,
+                    size: 20,
+                    color: kTextMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1745,8 +2332,12 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                 controller: _noteController,
                 decoration: const InputDecoration(
                   labelText: 'Estado o Nota Corta (Opcional)',
-                  hintText: 'Ej: ¡Juntos en cada meta! 💕',
-                  prefixIcon: Icon(Icons.edit_note_outlined, size: 20, color: kTextMuted),
+                  hintText: 'Ej: ¡Organizando mis finanzas! 💕',
+                  prefixIcon: Icon(
+                    Icons.edit_note_outlined,
+                    size: 20,
+                    color: kTextMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -1758,12 +2349,27 @@ class _ProfileBottomSheetState extends State<_ProfileBottomSheet> {
                     backgroundColor: kPrimaryColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
                   child: _isSaving
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Guardar Mi Perfil', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Guardar Mi Perfil',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -1779,12 +2385,14 @@ class _PartnerHeaderCard extends StatefulWidget {
   final String userId;
   final String userName;
   final String inviteCode;
+  final NidoUsageMode mode;
 
   const _PartnerHeaderCard({
     required this.coupleId,
     required this.userId,
     required this.userName,
     required this.inviteCode,
+    required this.mode,
   });
 
   @override
@@ -1805,15 +2413,120 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
     if (mounted) setState(() => _localPhotoPath = path);
   }
 
-  /// Recarga la foto local al volver al foco (ej. después de cambiarla en el modal)
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadLocalPhoto();
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (widget.mode == NidoUsageMode.guest) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: kSurfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kBorderColor, width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: kSecondaryColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_pin_outlined,
+                color: kSecondaryColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Modo Invitado (Local, sin guardado en la nube)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: kTextDark,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tus datos se guardan únicamente en tu dispositivo 📱',
+                    style: TextStyle(fontSize: 11, color: kTextMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (widget.mode == NidoUsageMode.individual) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: kSurfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kBorderColor, width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: kSecondaryColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: kSecondaryColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Finanzas de ${widget.userName} 👤',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Modo Personal en la Nube ☁️',
+                    style: TextStyle(fontSize: 11, color: kTextMuted),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(
+                Icons.person_outline,
+                color: kTextMuted,
+                size: 22,
+              ),
+              tooltip: 'Mi Perfil',
+              onPressed: () => showProfileModal(
+                context,
+                widget.userId,
+                widget.coupleId,
+                widget.userName,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -1850,13 +2563,11 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
           ),
           child: Row(
             children: [
-              // Dual Avatars
               SizedBox(
                 width: 62,
                 height: 42,
                 child: Stack(
                   children: [
-                    // Mi avatar: foto local si existe, si no emoji
                     GestureDetector(
                       onTap: () async {
                         await showProfileModal(
@@ -1865,13 +2576,13 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                           widget.coupleId,
                           widget.userName,
                         );
-                        _loadLocalPhoto(); // refresca foto al cerrar modal
+                        _loadLocalPhoto();
                       },
                       child: Container(
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
-                          color: kPrimaryColor.withValues(alpha: 0.12),
+                          color: kPrimaryColor.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -1882,10 +2593,16 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                                 fit: BoxFit.cover,
                                 width: 38,
                                 height: 38,
-                                errorBuilder: (_, __, ___) =>
-                                    Text(myEmoji, style: const TextStyle(fontSize: 20)),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Text(
+                                      myEmoji,
+                                      style: const TextStyle(fontSize: 20),
+                                    ),
                               )
-                            : Text(myEmoji, style: const TextStyle(fontSize: 20)),
+                            : Text(
+                                myEmoji,
+                                style: const TextStyle(fontSize: 20),
+                              ),
                       ),
                     ),
                     Positioned(
@@ -1894,19 +2611,23 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                         width: 38,
                         height: 38,
                         decoration: BoxDecoration(
-                          color: isPaired ? kSecondaryColor.withValues(alpha: 0.15) : kBackgroundColor,
+                          color: isPaired
+                              ? kSecondaryColor.withValues(alpha: 0.18)
+                              : kBackgroundColor,
                           shape: BoxShape.circle,
                           border: Border.all(color: kSurfaceColor, width: 2),
                         ),
                         alignment: Alignment.center,
-                        child: Text(isPaired ? partnerEmoji : '❓', style: const TextStyle(fontSize: 18)),
+                        child: Text(
+                          isPaired ? partnerEmoji : '❓',
+                          style: const TextStyle(fontSize: 18),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              // Partner Status Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1915,7 +2636,9 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                       children: [
                         Flexible(
                           child: Text(
-                            isPaired ? '${widget.userName} & $partnerName' : 'Tú & Tu Pareja',
+                            isPaired
+                                ? '${widget.userName} & $partnerName'
+                                : 'Tú & Tu Pareja',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -1929,7 +2652,9 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: isPaired ? Colors.green.shade500 : Colors.amber.shade600,
+                            color: isPaired
+                                ? Colors.green.shade600
+                                : Colors.amber.shade600,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -1938,12 +2663,16 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                     const SizedBox(height: 2),
                     Text(
                       isPaired
-                          ? (partnerNote != null && partnerNote.isNotEmpty ? partnerNote : 'Conectados en Nido 💚')
+                          ? (partnerNote != null && partnerNote.isNotEmpty
+                                ? partnerNote
+                                : 'Conectados en Nido 💚')
                           : 'Esperando que tu pareja se una…',
                       style: TextStyle(
                         fontSize: 11,
                         color: isPaired ? kTextMuted : Colors.amber.shade800,
-                        fontWeight: isPaired ? FontWeight.w400 : FontWeight.w500,
+                        fontWeight: isPaired
+                            ? FontWeight.w500
+                            : FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1951,18 +2680,34 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
                   ],
                 ),
               ),
-              // Actions
               IconButton(
-                icon: const Icon(Icons.favorite_rounded, color: kPrimaryColor, size: 22),
+                icon: const Icon(
+                  Icons.favorite_rounded,
+                  color: kPrimaryColor,
+                  size: 22,
+                ),
                 tooltip: 'Enviar Guiño 💕',
-                onPressed: () => _showSendPingModalGlobal(context, widget.coupleId, widget.userName),
+                onPressed: () => _showSendPingModalGlobal(
+                  context,
+                  widget.coupleId,
+                  widget.userName,
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.person_outline, color: kTextMuted, size: 22),
+                icon: const Icon(
+                  Icons.person_outline,
+                  color: kTextMuted,
+                  size: 22,
+                ),
                 tooltip: 'Mi Perfil 👤',
                 onPressed: () async {
-                  await showProfileModal(context, widget.userId, widget.coupleId, widget.userName);
-                  _loadLocalPhoto(); // refresca foto al cerrar modal de perfil
+                  await showProfileModal(
+                    context,
+                    widget.userId,
+                    widget.coupleId,
+                    widget.userName,
+                  );
+                  _loadLocalPhoto();
                 },
               ),
             ],
@@ -1974,18 +2719,20 @@ class _PartnerHeaderCardState extends State<_PartnerHeaderCard> {
 }
 
 // ==========================================
-// NAVEGACIÓN PRINCIPAL (TABS)
+// NAVEGACIÓN PRINCIPAL
 // ==========================================
 class MainNavigation extends StatefulWidget {
   final String coupleId;
   final String userId;
   final String userName;
+  final NidoUsageMode mode;
 
   const MainNavigation({
     super.key,
     required this.coupleId,
     required this.userId,
     required this.userName,
+    this.mode = NidoUsageMode.couple,
   });
 
   @override
@@ -1994,30 +2741,14 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-  late final List<Widget> _screens;
   String? _lastHandledPingId;
 
   @override
   void initState() {
     super.initState();
-    _screens = [
-      DashboardScreen(
-        coupleId: widget.coupleId,
-        userId: widget.userId,
-        userName: widget.userName,
-      ),
-      AnalyticsScreen(
-        coupleId: widget.coupleId,
-        userName: widget.userName,
-      ),
-      ShoppingListScreen(
-        coupleId: widget.coupleId,
-        userId: widget.userId,
-      ),
-      SavingsGoalsScreen(coupleId: widget.coupleId),
-    ];
-
-    _listenToLovePings();
+    if (widget.mode == NidoUsageMode.couple) {
+      _listenToLovePings();
+    }
   }
 
   void _listenToLovePings() {
@@ -2029,139 +2760,103 @@ class _MainNavigationState extends State<MainNavigation> {
         .limit(1)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.docs.isEmpty) return;
-      final doc = snapshot.docs.first;
-      if (doc.id == _lastHandledPingId) return;
-      _lastHandledPingId = doc.id;
+          if (snapshot.docs.isEmpty) return;
+          final doc = snapshot.docs.first;
+          if (doc.id == _lastHandledPingId) return;
+          _lastHandledPingId = doc.id;
 
-      final data = doc.data();
-      final createdBy = (data['createdBy'] as String?) ?? '';
-      final message = (data['message'] as String?) ?? '';
-      final date = (data['date'] as Timestamp?)?.toDate();
+          final data = doc.data();
+          final createdBy = (data['createdBy'] as String?) ?? '';
+          final message = (data['message'] as String?) ?? '';
+          final date = (data['date'] as Timestamp?)?.toDate();
 
-      if (createdBy.isNotEmpty && createdBy != widget.userName && date != null) {
-        if (DateTime.now().difference(date).inSeconds < 30) {
-          HapticFeedback.heavyImpact();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.favorite, color: Colors.white, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '$createdBy te envió: "$message"',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+          if (createdBy.isNotEmpty &&
+              createdBy != widget.userName &&
+              date != null) {
+            if (DateTime.now().difference(date).inSeconds < 45) {
+              HapticFeedback.heavyImpact();
+              showLocalNotification('💕 Guiño de Amor de $createdBy', message);
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '$createdBy te envió: "$message"',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                backgroundColor: kPrimaryColor,
-                duration: const Duration(seconds: 4),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                margin: const EdgeInsets.all(16),
-              ),
-            );
+                    backgroundColor: kPrimaryColor,
+                    duration: const Duration(seconds: 5),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    margin: const EdgeInsets.all(16),
+                  ),
+                );
+              }
+            }
           }
-        }
-      }
-    });
+        });
   }
 
-  void _showSendPingModal(BuildContext context) {
-    final pings = [
-      '❤️ Te quiero mucho',
-      '☕ ¿Un cafecito juntos?',
-      '🥰 ¡Gracias por ser mi equipo!',
-      '🌹 Pensando en ti',
-      '🍰 ¡Hoy te invito el postre!',
-      '🍕 ¿Pedimos comida rica hoy?',
-      '🥂 ¡Salud por nuestro nido!',
-    ];
-
+  void _openOptionsMenu() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: kSurfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      backgroundColor: kSurfaceColor,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.favorite, color: kPrimaryColor, size: 22),
-                const SizedBox(width: 8),
-                const Text(
-                  'Enviar Guiño de Amor 💕',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextDark),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Envia un mensaje instantáneo a la pantalla de tu pareja:',
-              style: TextStyle(color: kTextMuted, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: pings.map((p) => ActionChip(
-                avatar: const Icon(Icons.favorite_rounded, size: 14, color: kPrimaryColor),
-                label: Text(p, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                backgroundColor: kBackgroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: kBorderColor),
-                ),
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await FirebaseFirestore.instance
-                      .collection('couples')
-                      .doc(widget.coupleId)
-                      .collection('pings')
-                      .add({
-                    'message': p,
-                    'createdBy': widget.userName,
-                    'date': Timestamp.now(),
-                  });
-                  HapticFeedback.mediumImpact();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('✨ Guiño enviado: $p'),
-                        backgroundColor: kSecondaryColor,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        margin: const EdgeInsets.all(16),
-                      ),
-                    );
-                  }
-                },
-              )).toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+      builder: (ctx) => _NidoOptionsMenu(
+        coupleId: widget.coupleId,
+        userId: widget.userId,
+        userName: widget.userName,
+        mode: widget.mode,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      DashboardScreen(
+        coupleId: widget.coupleId,
+        userId: widget.userId,
+        userName: widget.userName,
+        mode: widget.mode,
+        onOpenMenu: _openOptionsMenu,
+      ),
+      AnalyticsScreen(
+        coupleId: widget.coupleId,
+        userName: widget.userName,
+        mode: widget.mode,
+      ),
+      ShoppingListScreen(
+        coupleId: widget.coupleId,
+        userId: widget.userId,
+        mode: widget.mode,
+      ),
+      SavingsGoalsScreen(coupleId: widget.coupleId, mode: widget.mode),
+      HistoryScreen(coupleId: widget.coupleId, mode: widget.mode),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: kBorderColor, width: 1.2)),
@@ -2172,8 +2867,14 @@ class _MainNavigationState extends State<MainNavigation> {
               setState(() => _currentIndex = index),
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.account_balance_wallet_outlined, color: kTextMuted),
-              selectedIcon: Icon(Icons.account_balance_wallet, color: kPrimaryColor),
+              icon: Icon(
+                Icons.account_balance_wallet_outlined,
+                color: kTextMuted,
+              ),
+              selectedIcon: Icon(
+                Icons.account_balance_wallet,
+                color: kPrimaryColor,
+              ),
               label: 'Resumen',
             ),
             NavigationDestination(
@@ -2191,6 +2892,577 @@ class _MainNavigationState extends State<MainNavigation> {
               selectedIcon: Icon(Icons.savings_rounded, color: kPrimaryColor),
               label: 'Ahorros',
             ),
+            NavigationDestination(
+              icon: Icon(Icons.history_toggle_off_rounded, color: kTextMuted),
+              selectedIcon: Icon(Icons.history_rounded, color: kPrimaryColor),
+              label: 'Histórico',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// MENÚ DE OPCIONES NIDO (SETTINGS & MODO)
+// ==========================================
+class _NidoOptionsMenu extends StatefulWidget {
+  final String coupleId;
+  final String userId;
+  final String userName;
+  final NidoUsageMode mode;
+
+  const _NidoOptionsMenu({
+    required this.coupleId,
+    required this.userId,
+    required this.userName,
+    required this.mode,
+  });
+
+  @override
+  State<_NidoOptionsMenu> createState() => _NidoOptionsMenuState();
+}
+
+class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
+  int _resetDay = 1;
+  String _resetMode = 'monthly';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCoupleSettings();
+  }
+
+  Future<void> _loadCoupleSettings() async {
+    if (widget.mode != NidoUsageMode.guest) {
+      final doc = await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(widget.coupleId)
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (mounted) {
+          setState(() {
+            _resetDay = (data['resetDay'] as num?)?.toInt() ?? 1;
+            _resetMode = (data['resetMode'] as String?) ?? 'monthly';
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _updateResetSettings(int day, String mode) async {
+    setState(() {
+      _resetDay = day;
+      _resetMode = mode;
+    });
+    if (widget.mode != NidoUsageMode.guest) {
+      await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(widget.coupleId)
+          .update({'resetDay': day, 'resetMode': mode});
+    }
+    HapticFeedback.lightImpact();
+  }
+
+  Future<void> _cerrarPeriodoYArchivar() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('¿Cerrar y archivar periodo actual?'),
+        content: const Text(
+          'Esto guardará un resumen completo de los gastos e ingresos actuales en el Histórico de Periodos de Nido.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Archivar Periodo'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+
+      double totalIncome = 0;
+      double totalExpense = 0;
+
+      if (widget.mode == NidoUsageMode.guest) {
+        final list = await LocalGuestStorage.getExpenses();
+        for (var item in list) {
+          final isInc = item['type'] == 'income';
+          final amt = (item['amount'] as num?)?.toDouble() ?? 0.0;
+          if (isInc) {
+            totalIncome += amt;
+          } else {
+            totalExpense += amt;
+          }
+        }
+
+        final periodTitle = _resetMode == 'biweekly'
+            ? 'Quincena - ${DateFormat('MMMM yyyy', 'es').format(now).capitalize()}'
+            : DateFormat('MMMM yyyy', 'es').format(now).capitalize();
+
+        final historyList = await LocalGuestStorage.getHistory();
+        historyList.add(
+          HistoryPeriod(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            title: periodTitle,
+            startDate: startOfMonth,
+            endDate: now,
+            totalIncome: totalIncome,
+            totalExpense: totalExpense,
+            balance: totalIncome - totalExpense,
+            closedBy: widget.userName,
+            createdAt: now,
+          ).toJson(),
+        );
+        await LocalGuestStorage.saveHistory(historyList);
+      } else {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('expenses')
+            .where(
+              'date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+            )
+            .get();
+
+        final expenses = snapshot.docs
+            .map((d) => Expense.fromFirestore(d))
+            .toList();
+        for (var e in expenses) {
+          if (e.isIncome) {
+            totalIncome += e.amount;
+          } else {
+            totalExpense += e.amount;
+          }
+        }
+
+        final periodTitle = _resetMode == 'biweekly'
+            ? 'Quincena - ${DateFormat('MMMM yyyy', 'es').format(now).capitalize()}'
+            : DateFormat('MMMM yyyy', 'es').format(now).capitalize();
+
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('history_periods')
+            .add({
+              'title': periodTitle,
+              'startDate': Timestamp.fromDate(startOfMonth),
+              'endDate': Timestamp.fromDate(now),
+              'totalIncome': totalIncome,
+              'totalExpense': totalExpense,
+              'balance': totalIncome - totalExpense,
+              'closedBy': widget.userName,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✨ Periodo archivado en el Histórico'),
+            backgroundColor: kSecondaryColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al archivar periodo'),
+            backgroundColor: kDangerColor,
+          ),
+        );
+      }
+    }
+  }
+
+  void _crearNuevaCategoria() {
+    final nameCtrl = TextEditingController();
+    final emojiCtrl = TextEditingController(text: '🏷️');
+    int selectedColor = 0xFF00897B;
+    String selectedType = 'expense';
+
+    final List<int> colorOptions = [
+      0xFFE54B2A,
+      0xFF00897B,
+      0xFFFF6D00,
+      0xFF2563EB,
+      0xFF9333EA,
+      0xFFDB2777,
+      0xFFD97706,
+      0xFF059669,
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          backgroundColor: kSurfaceColor,
+          title: const Text(
+            'Nueva Categoría Personalizada',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre (ej: Mascotas, Cine)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emojiCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Emoji de la categoría (ej: 🐶, 🎬)',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('➖ Gasto'),
+                      selected: selectedType == 'expense',
+                      selectedColor: kExpenseColor,
+                      labelStyle: TextStyle(
+                        color: selectedType == 'expense'
+                            ? Colors.white
+                            : kTextDark,
+                      ),
+                      onSelected: (_) =>
+                          setDialogState(() => selectedType = 'expense'),
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('➕ Ingreso'),
+                      selected: selectedType == 'income',
+                      selectedColor: kIncomeColor,
+                      labelStyle: TextStyle(
+                        color: selectedType == 'income'
+                            ? Colors.white
+                            : kTextDark,
+                      ),
+                      onSelected: (_) =>
+                          setDialogState(() => selectedType = 'income'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Color identificador:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: kTextMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: colorOptions.map((c) {
+                    final isSel = selectedColor == c;
+                    return GestureDetector(
+                      onTap: () => setDialogState(() => selectedColor = c),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Color(c),
+                          shape: BoxShape.circle,
+                          border: isSel
+                              ? Border.all(color: kTextDark, width: 3)
+                              : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameCtrl.text.trim();
+                final emoji = emojiCtrl.text.trim();
+                if (name.isNotEmpty) {
+                  if (widget.mode == NidoUsageMode.guest) {
+                    final cats = await LocalGuestStorage.getCategories();
+                    cats.add(
+                      CustomCategory(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        name: name,
+                        emoji: emoji.isEmpty ? '🏷️' : emoji,
+                        colorHex: selectedColor,
+                        type: selectedType,
+                      ).toJson(),
+                    );
+                    await LocalGuestStorage.saveCategories(cats);
+                  } else {
+                    await FirebaseFirestore.instance
+                        .collection('couples')
+                        .doc(widget.coupleId)
+                        .collection('categories')
+                        .add({
+                          'name': name,
+                          'emoji': emoji.isEmpty ? '🏷️' : emoji,
+                          'colorHex': selectedColor,
+                          'type': selectedType,
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
+                  }
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                nameCtrl.dispose();
+                emojiCtrl.dispose();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.settings_outlined,
+                  color: kPrimaryColor,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Menú & Ajustes ⚙️',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kTextDark,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: kBackgroundColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kBorderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 18,
+                        color: kPrimaryColor,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Ciclo de Presupuesto',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: kTextDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Elige cuándo se reinician los montos o comienza la quincena:',
+                    style: TextStyle(fontSize: 12, color: kTextMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Mensual'),
+                        selected: _resetMode == 'monthly',
+                        selectedColor: kPrimaryColor,
+                        labelStyle: TextStyle(
+                          color: _resetMode == 'monthly'
+                              ? Colors.white
+                              : kTextDark,
+                          fontSize: 12,
+                        ),
+                        onSelected: (_) =>
+                            _updateResetSettings(_resetDay, 'monthly'),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Quincenal (Día 1 y 16)'),
+                        selected: _resetMode == 'biweekly',
+                        selectedColor: kPrimaryColor,
+                        labelStyle: TextStyle(
+                          color: _resetMode == 'biweekly'
+                              ? Colors.white
+                              : kTextDark,
+                          fontSize: 12,
+                        ),
+                        onSelected: (_) => _updateResetSettings(1, 'biweekly'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kSecondaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.category_outlined,
+                  color: kSecondaryColor,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Crear Categoría Personalizada',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Añade un icono y color a tus categorías',
+                style: TextStyle(fontSize: 12, color: kTextMuted),
+              ),
+              trailing: const Icon(
+                Icons.add_circle_outline_rounded,
+                color: kSecondaryColor,
+              ),
+              onTap: _crearNuevaCategoria,
+            ),
+            const Divider(color: kBorderColor, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.archive_outlined,
+                  color: kPrimaryColor,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Archivar Periodo a Histórico',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Guarda el balance del periodo y comienza un nuevo ciclo',
+                style: TextStyle(fontSize: 12, color: kTextMuted),
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: kTextMuted,
+              ),
+              onTap: _cerrarPeriodoYArchivar,
+            ),
+            const Divider(color: kBorderColor, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kDangerColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.logout_outlined,
+                  color: kDangerColor,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                widget.mode == NidoUsageMode.guest
+                    ? 'Salir del Modo Invitado'
+                    : 'Cerrar Sesión',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: kDangerColor,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (widget.mode == NidoUsageMode.guest) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+                  );
+                } else {
+                  FirebaseAuth.instance.signOut();
+                }
+              },
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -2205,12 +3477,16 @@ class DashboardScreen extends StatefulWidget {
   final String coupleId;
   final String userId;
   final String userName;
+  final NidoUsageMode mode;
+  final VoidCallback onOpenMenu;
 
   const DashboardScreen({
     super.key,
     required this.coupleId,
     required this.userId,
     required this.userName,
+    required this.mode,
+    required this.onOpenMenu,
   });
 
   @override
@@ -2219,10 +3495,41 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String _filterType = 'all'; // 'all', 'expense', 'income'
+  String _selectedCategoryFilter = 'all';
   bool _disponibleExpanded = true;
   bool _movimientosExpanded = true;
 
-  void _openAddExpenseSheet() {
+  // ESTADO MODO INVITADO
+  List<Expense> _guestExpenses = [];
+  double _guestBudget = 2000.0;
+  List<CustomCategory> _guestCategories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == NidoUsageMode.guest) {
+      _loadGuestData();
+    }
+  }
+
+  Future<void> _loadGuestData() async {
+    final rawExpenses = await LocalGuestStorage.getExpenses();
+    final budget = await LocalGuestStorage.getBudget();
+    final rawCats = await LocalGuestStorage.getCategories();
+
+    if (mounted) {
+      setState(() {
+        _guestExpenses = rawExpenses.map((e) => Expense.fromJson(e)).toList();
+        _guestExpenses.sort((a, b) => b.date.compareTo(a.date));
+        _guestBudget = budget;
+        _guestCategories = rawCats
+            .map((c) => CustomCategory.fromJson(c))
+            .toList();
+      });
+    }
+  }
+
+  void _openAddExpenseSheet({Expense? expenseToEdit}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2230,6 +3537,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context) => AddExpenseBottomSheet(
         coupleId: widget.coupleId,
         userName: widget.userName,
+        mode: widget.mode,
+        expenseToEdit: expenseToEdit,
+        onGuestRefresh: _loadGuestData,
       ),
     );
   }
@@ -2245,16 +3555,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
         .snapshots()
         .map((snapshot) {
-      final items =
-          snapshot.docs.map((doc) => Expense.fromFirestore(doc)).toList();
-      items.sort((a, b) => b.date.compareTo(a.date));
-      return items;
-    });
+          final items = snapshot.docs
+              .map((doc) => Expense.fromFirestore(doc))
+              .toList();
+          items.sort((a, b) => b.date.compareTo(a.date));
+          return items;
+        });
+  }
+
+  Stream<List<CustomCategory>> _streamCustomCategories() {
+    return FirebaseFirestore.instance
+        .collection('couples')
+        .doc(widget.coupleId)
+        .collection('categories')
+        .snapshots()
+        .map(
+          (snap) =>
+              snap.docs.map((d) => CustomCategory.fromFirestore(d)).toList(),
+        );
   }
 
   void _showEditBudgetDialog(BuildContext context, double currentBudget) {
-    final controller =
-        TextEditingController(text: currentBudget.toInt().toString());
+    final controller = TextEditingController(
+      text: currentBudget.toInt().toString(),
+    );
 
     showDialog(
       context: context,
@@ -2292,10 +3616,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: () async {
               final val = parseFormattedAmount(controller.text);
               if (val > 0) {
-                await FirebaseFirestore.instance
-                    .collection('couples')
-                    .doc(widget.coupleId)
-                    .update({'budget_limit': val});
+                if (widget.mode == NidoUsageMode.guest) {
+                  await LocalGuestStorage.setBudget(val);
+                  _loadGuestData();
+                } else {
+                  await FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .update({'budget_limit': val});
+                }
               }
               if (ctx.mounted) Navigator.pop(ctx);
               controller.dispose();
@@ -2314,6 +3643,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.mode == NidoUsageMode.guest) {
+      return _buildDashboardBody(
+        budgetLimit: _guestBudget,
+        inviteCode: '',
+        members: [widget.userId],
+        allTransactions: _guestExpenses,
+        customCats: _guestCategories,
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('couples')
+          .doc(widget.coupleId)
+          .snapshots(),
+      builder: (context, coupleSnapshot) {
+        if (coupleSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: kPrimaryColor),
+            ),
+          );
+        }
+
+        final coupleData = coupleSnapshot.data?.data() as Map<String, dynamic>?;
+        final double budgetLimit =
+            ((coupleData?['budget_limit'] as num?) ?? 2000.0).toDouble();
+        final String inviteCode = (coupleData?['invite_code'] as String?) ?? '';
+        final members = List<String>.from(
+          coupleData?['members'] as List? ?? [],
+        );
+
+        return StreamBuilder<List<Expense>>(
+          stream: _streamExpenses(),
+          builder: (context, expensesSnapshot) {
+            final allTransactions = expensesSnapshot.data ?? [];
+
+            return StreamBuilder<List<CustomCategory>>(
+              stream: _streamCustomCategories(),
+              builder: (context, customCatSnap) {
+                final customCats = customCatSnap.data ?? [];
+                return _buildDashboardBody(
+                  budgetLimit: budgetLimit,
+                  inviteCode: inviteCode,
+                  members: members,
+                  allTransactions: allTransactions,
+                  customCats: customCats,
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDashboardBody({
+    required double budgetLimit,
+    required String inviteCode,
+    required List<String> members,
+    required List<Expense> allTransactions,
+    required List<CustomCategory> customCats,
+  }) {
+    double totalIngresos = 0;
+    double totalGastos = 0;
+
+    for (var t in allTransactions) {
+      if (t.isIncome) {
+        totalIngresos += t.amount;
+      } else {
+        totalGastos += t.amount;
+      }
+    }
+
+    final disponibleReal =
+        (totalIngresos > 0 ? totalIngresos : budgetLimit) - totalGastos;
+    final porcentajeGastado = totalIngresos > 0
+        ? (totalGastos / totalIngresos).clamp(0.0, 1.0)
+        : (totalGastos / budgetLimit).clamp(0.0, 1.0);
+
+    final filtered = allTransactions.where((t) {
+      if (_filterType == 'income' && !t.isIncome) return false;
+      if (_filterType == 'expense' && t.isIncome) return false;
+      if (_selectedCategoryFilter != 'all' &&
+          t.category != _selectedCategoryFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final waitingForPartner =
+        widget.mode == NidoUsageMode.couple && members.length < 2;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -2325,7 +3747,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'assets/images/nido_icon.png',
                 height: 28,
                 width: 28,
-                errorBuilder: (ctx, err, stack) => const Icon(Icons.favorite, color: kPrimaryColor, size: 24),
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.favorite, color: kPrimaryColor, size: 24),
               ),
             ),
             const SizedBox(width: 8),
@@ -2337,469 +3760,530 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_outlined, size: 20, color: kTextMuted),
-            onPressed: () => FirebaseAuth.instance.signOut(),
-            tooltip: 'Cerrar sesión',
+            icon: const Icon(
+              Icons.settings_outlined,
+              size: 22,
+              color: kTextDark,
+            ),
+            onPressed: widget.onOpenMenu,
+            tooltip: 'Menú de opciones',
           ),
         ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('couples')
-            .doc(widget.coupleId)
-            .snapshots(),
-        builder: (context, coupleSnapshot) {
-          if (coupleSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: kPrimaryColor));
-          }
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: _PartnerHeaderCard(
+                coupleId: widget.coupleId,
+                userId: widget.userId,
+                userName: widget.userName,
+                inviteCode: inviteCode,
+                mode: widget.mode,
+              ),
+            ),
+          ),
+          if (waitingForPartner && inviteCode.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _InviteCodeCard(inviteCode: inviteCode),
+              ),
+            ),
 
-          final coupleData =
-              coupleSnapshot.data?.data() as Map<String, dynamic>?;
-          final double budgetLimit =
-              ((coupleData?['budget_limit'] as num?) ?? 2000.0).toDouble();
-          final String inviteCode =
-              (coupleData?['invite_code'] as String?) ?? '';
-          final members =
-              List<String>.from(coupleData?['members'] as List? ?? []);
-
-          return StreamBuilder<List<Expense>>(
-            stream: _streamExpenses(),
-            builder: (context, expensesSnapshot) {
-              final allTransactions = expensesSnapshot.data ?? [];
-              
-              // Totales de Ingresos vs Gastos
-              double totalIngresos = 0;
-              double totalGastos = 0;
-              final Map<String, double> ingresosPorUsuario = {};
-
-              for (var t in allTransactions) {
-                if (t.isIncome) {
-                  totalIngresos += t.amount;
-                  final user = t.createdBy.isNotEmpty ? t.createdBy : 'Anon';
-                  ingresosPorUsuario[user] = (ingresosPorUsuario[user] ?? 0) + t.amount;
-                } else {
-                  totalGastos += t.amount;
-                }
-              }
-
-              // Disponible real
-              final disponibleReal = (totalIngresos > 0 ? totalIngresos : budgetLimit) - totalGastos;
-              final porcentajeGastado = totalIngresos > 0
-                  ? (totalGastos / totalIngresos).clamp(0.0, 1.0)
-                  : (totalGastos / budgetLimit).clamp(0.0, 1.0);
-
-              // Filtrar movimientos según pestaña activa
-              final filtered = allTransactions.where((t) {
-                if (_filterType == 'income') return t.isIncome;
-                if (_filterType == 'expense') return !t.isIncome;
-                return true;
-              }).toList();
-
-              final waitingForPartner = members.length < 2;
-
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: _PartnerHeaderCard(
-                        coupleId: widget.coupleId,
-                        userId: widget.userId,
-                        userName: widget.userName,
-                        inviteCode: inviteCode,
-                      ),
-                    ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Container(
+                padding: EdgeInsets.fromLTRB(
+                  18,
+                  16,
+                  18,
+                  _disponibleExpanded ? 18 : 14,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF334155), Color(0xFF1E293B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  if (waitingForPartner && inviteCode.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                        child: _InviteCodeCard(inviteCode: inviteCode),
-                      ),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kDisponibleColor.withValues(alpha: 0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
-
-                  // Tarjeta Disponible Real (colapsable)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: Container(
-                        padding: EdgeInsets.fromLTRB(18, 16, 18, _disponibleExpanded ? 18 : 14),
-                        decoration: BoxDecoration(
-                          color: kSurfaceColor,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: kBorderColor, width: 1.2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () {
-                                setState(() => _disponibleExpanded = !_disponibleExpanded);
-                                HapticFeedback.selectionClick();
-                              },
-                              child: Row(
-                                children: [
-                                  const Text(
-                                    'Disponible Real',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: kTextMuted,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  if (!_disponibleExpanded)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: _SmoothCurrencyText(
-                                        value: disponibleReal,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: disponibleReal < 0 ? kDangerColor : kTextDark,
-                                        ),
-                                      ),
-                                    ),
-                                  if (_disponibleExpanded)
-                                    GestureDetector(
-                                      onTap: () => _showEditBudgetDialog(context, budgetLimit),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: kBackgroundColor,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              'Meta: ${formatCurrency(budgetLimit)}',
-                                              style: const TextStyle(fontSize: 11, color: kTextMuted),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            const Icon(Icons.edit_outlined, size: 12, color: kPrimaryColor),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  Icon(
-                                    _disponibleExpanded
-                                        ? Icons.keyboard_arrow_up_rounded
-                                        : Icons.keyboard_arrow_down_rounded,
-                                    color: kTextMuted,
-                                    size: 22,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            AnimatedCrossFade(
-                              firstCurve: Curves.easeOutCubic,
-                              secondCurve: Curves.easeOutCubic,
-                              sizeCurve: Curves.easeOutCubic,
-                              crossFadeState: _disponibleExpanded
-                                  ? CrossFadeState.showFirst
-                                  : CrossFadeState.showSecond,
-                              duration: const Duration(milliseconds: 220),
-                              firstChild: Column(
-                                children: [
-                                  const SizedBox(height: 6),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: _SmoothCurrencyText(
-                                      value: disponibleReal,
-                                      style: TextStyle(
-                                        fontSize: 36,
-                                        fontWeight: FontWeight.w900,
-                                        color: disponibleReal < 0 ? kDangerColor : kTextDark,
-                                        letterSpacing: -1.5,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TweenAnimationBuilder<double>(
-                                    key: ValueKey(porcentajeGastado),
-                                    tween: Tween(begin: 0.0, end: porcentajeGastado),
-                                    duration: const Duration(milliseconds: 1000),
-                                    curve: Curves.easeOutCubic,
-                                    builder: (_, val, __) => ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: LinearProgressIndicator(
-                                        value: val,
-                                        backgroundColor: kBorderColor,
-                                        color: porcentajeGastado >= 0.9
-                                            ? kDangerColor
-                                            : porcentajeGastado > 0.75
-                                                ? Colors.orange.shade400
-                                                : kSecondaryColor,
-                                        minHeight: 8,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.shade50,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(Icons.arrow_upward_rounded, size: 14, color: Colors.green.shade700),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    'Ingresos (+)',
-                                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                formatCurrency(totalIngresos),
-                                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.green.shade800),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.shade50,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.red.shade700),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    'Gastos (-)',
-                                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade900),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                formatCurrency(totalGastos),
-                                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.red.shade800),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (porcentajeGastado >= 0.85) ...[
-                                    const SizedBox(height: 14),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.shade50,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.amber.shade200),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.warning_amber_rounded, size: 18, color: Colors.amber.shade900),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '¡Atención! Han gastado el ${(porcentajeGastado * 100).toInt()}% de los fondos.',
-                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              secondChild: const SizedBox.shrink(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Encabezado de Movimientos (colapsable + botón añadir arriba)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Column(
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        setState(
+                          () => _disponibleExpanded = !_disponibleExpanded,
+                        );
+                        HapticFeedback.selectionClick();
+                      },
+                      child: Row(
                         children: [
-                          InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              setState(() => _movimientosExpanded = !_movimientosExpanded);
-                              HapticFeedback.selectionClick();
-                            },
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Movimientos${filtered.isNotEmpty ? ' (${filtered.length})' : ''}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: kTextDark,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  _movimientosExpanded
-                                      ? Icons.keyboard_arrow_up_rounded
-                                      : Icons.keyboard_arrow_down_rounded,
-                                  color: kTextMuted,
-                                  size: 22,
-                                ),
-                                const Spacer(),
-                                Material(
-                                  color: kPrimaryColor,
-                                  borderRadius: BorderRadius.circular(14),
-                                  elevation: 0,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(14),
-                                    onTap: _openAddExpenseSheet,
-                                    child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Añadir',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          const Icon(
+                            Icons.account_balance_wallet,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Disponible Real',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          AnimatedCrossFade(
-                            firstCurve: Curves.easeOutCubic,
-                            secondCurve: Curves.easeOutCubic,
-                            sizeCurve: Curves.easeOutCubic,
-                            crossFadeState: _movimientosExpanded
-                                ? CrossFadeState.showFirst
-                                : CrossFadeState.showSecond,
-                            duration: const Duration(milliseconds: 220),
-                            firstChild: Padding(
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  _buildFilterChip('Todos', 'all'),
-                                  const SizedBox(width: 4),
-                                  _buildFilterChip('➖ Gastos', 'expense'),
-                                  const SizedBox(width: 4),
-                                  _buildFilterChip('➕ Ingresos', 'income'),
-                                ],
+                          const Spacer(),
+                          if (!_disponibleExpanded)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _SmoothCurrencyText(
+                                value: disponibleReal,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                            secondChild: const SizedBox.shrink(),
+                          if (_disponibleExpanded)
+                            GestureDetector(
+                              onTap: () =>
+                                  _showEditBudgetDialog(context, budgetLimit),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Meta: ${formatCurrency(budgetLimit)}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.edit_outlined,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          Icon(
+                            _disponibleExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white,
+                            size: 22,
                           ),
                         ],
                       ),
                     ),
+                    AnimatedCrossFade(
+                      firstCurve: Curves.easeOutCubic,
+                      secondCurve: Curves.easeOutCubic,
+                      sizeCurve: Curves.easeOutCubic,
+                      crossFadeState: _disponibleExpanded
+                          ? CrossFadeState.showFirst
+                          : CrossFadeState.showSecond,
+                      duration: const Duration(milliseconds: 220),
+                      firstChild: Column(
+                        children: [
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _SmoothCurrencyText(
+                              value: disponibleReal,
+                              style: TextStyle(
+                                fontSize: 38,
+                                fontWeight: FontWeight.w900,
+                                color: disponibleReal < 0
+                                    ? const Color(0xFFFF8A80)
+                                    : Colors.white,
+                                letterSpacing: -1.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TweenAnimationBuilder<double>(
+                            key: ValueKey(porcentajeGastado),
+                            tween: Tween(begin: 0.0, end: porcentajeGastado),
+                            duration: const Duration(milliseconds: 1000),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, val, child) => ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: val,
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.25,
+                                ),
+                                color: porcentajeGastado >= 0.9
+                                    ? const Color(0xFFFF5252)
+                                    : porcentajeGastado > 0.75
+                                    ? Colors.amber.shade300
+                                    : const Color(0xFF6EE7B7),
+                                minHeight: 8,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.arrow_upward_rounded,
+                                            size: 16,
+                                            color: Color(0xFF6EE7B7),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Ingresos (+)',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        formatCurrency(totalIngresos),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.arrow_downward_rounded,
+                                            size: 16,
+                                            color: Color(0xFFFCA5A5),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Gastos (-)',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        formatCurrency(totalGastos),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      secondChild: const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          setState(
+                            () => _movimientosExpanded = !_movimientosExpanded,
+                          );
+                          HapticFeedback.selectionClick();
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              'Movimientos${filtered.isNotEmpty ? ' (${filtered.length})' : ''}',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: kTextDark,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              _movimientosExpanded
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              color: kTextMuted,
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        onPressed: () => _openAddExpenseSheet(),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text(
+                          'Añadir',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  // Lista de movimientos
-                  if (_movimientosExpanded)
-                    filtered.isEmpty
-                        ? SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 32),
-                              child: _EmptyState(
-                                icon: Icons.receipt_long_outlined,
-                                title: 'Sin movimientos registrados',
-                                subtitle: 'Usa "Añadir" para registrar un ingreso o un gasto.',
-                              ),
+                  if (_movimientosExpanded) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: kBackgroundColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: kBorderColor.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _buildFilterChip('Todos', 'all'),
+                              _buildFilterChip('➖ Gastos', 'expense'),
+                              _buildFilterChip('➕ Ingresos', 'income'),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Divider(height: 1, color: kBorderColor),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Colección de Categorías',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: kTextMuted,
                             ),
-                          )
-                        : SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final ex = filtered[index];
-                                  return _AnimatedListItem(
-                                    index: index,
-                                    child: _ExpenseCard(
-                                      expense: ex,
-                                      coupleId: widget.coupleId,
-                                      currentUserName: widget.userName,
-                                    ),
-                                  );
-                                },
-                                childCount: filtered.length,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _buildCategoryChip('Todas las cats', 'all'),
+                              ...customCats.map(
+                                (c) => _buildCategoryChip(
+                                  '${c.emoji} ${c.name}',
+                                  c.name,
+                                ),
                               ),
-                            ),
-                          )
-                  else
-                    const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
-              );
-            },
-          );
-        },
+              ),
+            ),
+          ),
+
+          if (_movimientosExpanded)
+            filtered.isEmpty
+                ? const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: _EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Sin movimientos registrados',
+                        subtitle:
+                            'Usa "Añadir" para registrar un ingreso o un gasto.',
+                      ),
+                    ),
+                  )
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final ex = filtered[index];
+                        return _AnimatedListItem(
+                          index: index,
+                          child: _ExpenseCard(
+                            expense: ex,
+                            coupleId: widget.coupleId,
+                            currentUserName: widget.userName,
+                            mode: widget.mode,
+                            onEdit: () =>
+                                _openAddExpenseSheet(expenseToEdit: ex),
+                            onGuestRefresh: _loadGuestData,
+                          ),
+                        );
+                      }, childCount: filtered.length),
+                    ),
+                  )
+          else
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+        ],
       ),
     );
   }
 
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _filterType == value;
+    final isExpense = value == 'expense';
+    final isIncome = value == 'income';
+
+    Color activeColor = kPrimaryColor;
+    if (isExpense) activeColor = kExpenseColor;
+    if (isIncome) activeColor = kIncomeColor;
+
     return GestureDetector(
       onTap: () {
         setState(() => _filterType = value);
         HapticFeedback.selectionClick();
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? kPrimaryColor : kSurfaceColor,
+          color: isSelected ? activeColor : kSurfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? kPrimaryColor : kBorderColor,
-          ),
-          boxShadow: isSelected
-              ? [BoxShadow(color: kPrimaryColor.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 2))]
-              : [],
+          border: Border.all(color: isSelected ? activeColor : kBorderColor),
         ),
-        child: AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 220),
+        child: Text(
+          label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: FontWeight.bold,
             color: isSelected ? Colors.white : kTextMuted,
           ),
-          child: Text(label),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String label, String value) {
+    final isSelected = _selectedCategoryFilter == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedCategoryFilter = value);
+        HapticFeedback.selectionClick();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? kAccentColor : kSurfaceColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSelected ? kAccentColor : kBorderColor),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: kAccentColor.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.bold,
+            color: isSelected ? Colors.white : kTextDark,
+          ),
         ),
       ),
     );
@@ -2807,35 +4291,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 // ==========================================
-// PANTALLA 2: ANÁLISIS & GRÁFICAS DEL NIDO
+// PANTALLA 2: ANÁLISIS
 // ==========================================
 class AnalyticsScreen extends StatelessWidget {
   final String coupleId;
   final String userName;
+  final NidoUsageMode mode;
 
   const AnalyticsScreen({
     super.key,
     required this.coupleId,
     required this.userName,
+    required this.mode,
   });
-
-  Stream<List<Expense>> _streamExpenses() {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-
-    return FirebaseFirestore.instance
-        .collection('couples')
-        .doc(coupleId)
-        .collection('expenses')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) => Expense.fromFirestore(doc)).toList();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    if (mode == NidoUsageMode.guest) {
+      return FutureBuilder<List<Map<String, dynamic>>>(
+        future: LocalGuestStorage.getExpenses(),
+        builder: (context, snapshot) {
+          final raw = snapshot.data ?? [];
+          final transactions = raw.map((e) => Expense.fromJson(e)).toList();
+          return _buildAnalyticsContent(transactions);
+        },
+      );
+    }
+
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('expenses')
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+          )
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: kPrimaryColor),
+            ),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final transactions = docs.map((d) => Expense.fromFirestore(d)).toList();
+
+        return _buildAnalyticsContent(transactions);
+      },
+    );
+  }
+
+  Widget _buildAnalyticsContent(List<Expense> transactions) {
+    final expensesOnly = transactions.where((t) => !t.isIncome).toList();
+    final incomesOnly = transactions.where((t) => t.isIncome).toList();
+
+    final totalIngresos = incomesOnly.fold<double>(
+      0,
+      (acc, t) => acc + t.amount,
+    );
+    final totalGastos = expensesOnly.fold<double>(
+      0,
+      (acc, t) => acc + t.amount,
+    );
+    final ahorroNeto = totalIngresos - totalGastos;
+
+    final Map<String, double> gastosPorCategoria = {};
+    for (var e in expensesOnly) {
+      gastosPorCategoria[e.category] =
+          (gastosPorCategoria[e.category] ?? 0) + e.amount;
+    }
+
+    final sortedCategories = gastosPorCategoria.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final Map<String, double> ingresosPorMiembro = {};
+    for (var i in incomesOnly) {
+      final user = i.createdBy.isNotEmpty ? i.createdBy : 'Usuario';
+      ingresosPorMiembro[user] = (ingresosPorMiembro[user] ?? 0) + i.amount;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -2847,223 +4388,250 @@ class AnalyticsScreen extends StatelessWidget {
                 'assets/images/nido_icon.png',
                 width: 26,
                 height: 26,
-                errorBuilder: (_, __, ___) => const Icon(Icons.favorite, color: kPrimaryColor, size: 22),
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.favorite, color: kPrimaryColor, size: 22),
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Nido · Análisis', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Nido · Análisis',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       ),
-      body: StreamBuilder<List<Expense>>(
-        stream: _streamExpenses(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
-          }
-
-          final transactions = snapshot.data ?? [];
-          final expensesOnly = transactions.where((t) => !t.isIncome).toList();
-          final incomesOnly = transactions.where((t) => t.isIncome).toList();
-
-          final totalIngresos = incomesOnly.fold<double>(0, (sum, t) => sum + t.amount);
-          final totalGastos = expensesOnly.fold<double>(0, (sum, t) => sum + t.amount);
-          final ahorroNeto = totalIngresos - totalGastos;
-
-          // Agrupar gastos por categoría
-          final Map<String, double> gastosPorCategoria = {};
-          for (var e in expensesOnly) {
-            gastosPorCategoria[e.category] = (gastosPorCategoria[e.category] ?? 0) + e.amount;
-          }
-
-          final sortedCategories = gastosPorCategoria.entries.toList()
-            ..sort((a, b) => b.value.compareTo(a.value));
-
-          // Agrupar ingresos por miembro
-          final Map<String, double> ingresosPorMiembro = {};
-          for (var i in incomesOnly) {
-            final user = i.createdBy.isNotEmpty ? i.createdBy : 'Miembro';
-            ingresosPorMiembro[user] = (ingresosPorMiembro[user] ?? 0) + i.amount;
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Tarjeta Resumen — animación 0
-              _AnimatedListItem(
-                index: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: kSurfaceColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kBorderColor, width: 1.2),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+        children: [
+          _AnimatedListItem(
+            index: 0,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kSurfaceColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: kBorderColor, width: 1.2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Balance Financiero del Mes',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: kTextDark,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Balance Financiero del Mes',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextDark),
+                      _buildMetricTile(
+                        'Ingresos',
+                        formatCurrency(totalIngresos),
+                        kIncomeColor,
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildMetricTile('Ingresos', formatCurrency(totalIngresos), Colors.green.shade700),
-                          _buildMetricTile('Gastos', formatCurrency(totalGastos), kDangerColor),
-                          _buildMetricTile('Superávit', formatCurrency(ahorroNeto), ahorroNeto >= 0 ? Colors.blue.shade700 : kDangerColor),
-                        ],
+                      _buildMetricTile(
+                        'Gastos',
+                        formatCurrency(totalGastos),
+                        kExpenseColor,
+                      ),
+                      _buildMetricTile(
+                        'Superávit',
+                        formatCurrency(ahorroNeto),
+                        ahorroNeto >= 0 ? kDisponibleColor : kExpenseColor,
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 20),
+            ),
+          ),
+          const SizedBox(height: 20),
 
-              // Gráfica de Gastos por Categoría — animación 1
-              _AnimatedListItem(
-                index: 1,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: kSurfaceColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kBorderColor, width: 1.2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Distribución de Gastos por Categoría',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextDark),
-                      ),
-                      const SizedBox(height: 16),
-                      if (sortedCategories.isEmpty)
-                        const Text('Aún no hay gastos registrados este mes.', style: TextStyle(color: kTextMuted, fontSize: 13))
-                      else
-                        ...sortedCategories.map((entry) {
-                          final porcentaje = totalGastos > 0 ? (entry.value / totalGastos) : 0.0;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      entry.key,
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kTextDark),
-                                    ),
-                                    Text(
-                                      '${formatCurrency(entry.value)} (${(porcentaje * 100).toStringAsFixed(1)}%)',
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kTextDark),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                TweenAnimationBuilder<double>(
-                                  key: ValueKey(entry.key),
-                                  tween: Tween(begin: 0.0, end: porcentaje),
-                                  duration: const Duration(milliseconds: 900),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (_, val, __) => ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: LinearProgressIndicator(
-                                      value: val,
-                                      minHeight: 8,
-                                      backgroundColor: kBackgroundColor,
-                                      color: kPrimaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                    ],
-                  ),
-                ),
+          _AnimatedListItem(
+            index: 1,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kSurfaceColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: kBorderColor, width: 1.2),
               ),
-              const SizedBox(height: 20),
-
-              // Aportantes al Fondo del Nido — animación 2
-              _AnimatedListItem(
-                index: 2,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: kSurfaceColor,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kBorderColor, width: 1.2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Distribución de Gastos por Categoría',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: kTextDark,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Aportantes al Fondo del Nido',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextDark),
-                      ),
-                      const SizedBox(height: 16),
-                      if (ingresosPorMiembro.isEmpty)
-                        const Text('Aún no se han registrado ingresos este mes.', style: TextStyle(color: kTextMuted, fontSize: 13))
-                      else
-                        ...ingresosPorMiembro.entries.map((e) {
-                          final pct = totalIngresos > 0 ? (e.value / totalIngresos) : 0.0;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10.0),
-                            child: Row(
+                  const SizedBox(height: 16),
+                  if (sortedCategories.isEmpty)
+                    const Text(
+                      'Aún no hay gastos registrados este mes.',
+                      style: TextStyle(color: kTextMuted, fontSize: 13),
+                    )
+                  else
+                    ...sortedCategories.map((entry) {
+                      final porcentaje = totalGastos > 0
+                          ? (entry.value / totalGastos)
+                          : 0.0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: kSecondaryColor.withValues(alpha: 0.2),
-                                  child: Text(
-                                    e.key.substring(0, 1).toUpperCase(),
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kSecondaryColor),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(e.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kTextDark)),
-                                      const SizedBox(height: 2),
-                                      TweenAnimationBuilder<double>(
-                                        key: ValueKey(e.key),
-                                        tween: Tween(begin: 0.0, end: pct),
-                                        duration: const Duration(milliseconds: 900),
-                                        curve: Curves.easeOutCubic,
-                                        builder: (_, val, __) => ClipRRect(
-                                          borderRadius: BorderRadius.circular(4),
-                                          child: LinearProgressIndicator(
-                                            value: val,
-                                            minHeight: 6,
-                                            backgroundColor: kBackgroundColor,
-                                            color: kSecondaryColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
                                 Text(
-                                  '${formatCurrency(e.value)} (${(pct * 100).toInt()}%)',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kTextDark),
+                                  entry.key,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: kTextDark,
+                                  ),
+                                ),
+                                Text(
+                                  '${formatCurrency(entry.value)} (${(porcentaje * 100).toStringAsFixed(1)}%)',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: kTextDark,
+                                  ),
                                 ),
                               ],
                             ),
-                          );
-                        }),
-                    ],
-                  ),
-                ),
+                            const SizedBox(height: 6),
+                            TweenAnimationBuilder<double>(
+                              key: ValueKey(entry.key),
+                              tween: Tween(begin: 0.0, end: porcentaje),
+                              duration: const Duration(milliseconds: 900),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, val, child) => ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: val,
+                                  minHeight: 8,
+                                  backgroundColor: kBackgroundColor,
+                                  color: kPrimaryColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                ],
               ),
-            ],
-          );
-        },
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          _AnimatedListItem(
+            index: 2,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: kSurfaceColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: kBorderColor, width: 1.2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Aportantes al Fondo',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (ingresosPorMiembro.isEmpty)
+                    const Text(
+                      'Aún no se han registrado ingresos este mes.',
+                      style: TextStyle(color: kTextMuted, fontSize: 13),
+                    )
+                  else
+                    ...ingresosPorMiembro.entries.map((e) {
+                      final pct = totalIngresos > 0
+                          ? (e.value / totalIngresos)
+                          : 0.0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: kSecondaryColor.withValues(
+                                alpha: 0.2,
+                              ),
+                              child: Text(
+                                e.key.substring(0, 1).toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: kSecondaryColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    e.key,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: kTextDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  TweenAnimationBuilder<double>(
+                                    key: ValueKey(e.key),
+                                    tween: Tween(begin: 0.0, end: pct),
+                                    duration: const Duration(milliseconds: 900),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (context, val, child) => ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: val,
+                                        minHeight: 6,
+                                        backgroundColor: kBackgroundColor,
+                                        color: kSecondaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              '${formatCurrency(e.value)} (${(pct * 100).toInt()}%)',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: kTextDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3072,15 +4640,28 @@ class AnalyticsScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: kTextMuted, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: kTextMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
       ],
     );
   }
 }
 
-// Tarjeta de código de invitación (misma estética que PairingScreen)
 class _InviteCodeCard extends StatelessWidget {
   final String inviteCode;
 
@@ -3109,9 +4690,9 @@ class _InviteCodeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: kSecondaryColor.withValues(alpha: 0.08),
+        color: kSecondaryColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kSecondaryColor.withValues(alpha: 0.3)),
+        border: Border.all(color: kSecondaryColor.withValues(alpha: 0.4)),
       ),
       child: Column(
         children: [
@@ -3133,10 +4714,17 @@ class _InviteCodeCard extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: () => _copyCode(context),
-            icon: const Icon(Icons.copy_rounded, size: 16, color: kPrimaryColor),
+            icon: const Icon(
+              Icons.copy_rounded,
+              size: 16,
+              color: kPrimaryColor,
+            ),
             label: const Text(
               'Copiar código',
-              style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: kPrimaryColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -3145,42 +4733,50 @@ class _InviteCodeCard extends StatelessWidget {
   }
 }
 
-// Card de movimiento (gasto o ingreso) con diseño visual único por categoría
+// ==========================================
+// CARD DE MOVIMIENTO
+// ==========================================
 class _ExpenseCard extends StatelessWidget {
   final Expense expense;
   final String coupleId;
   final String currentUserName;
+  final NidoUsageMode mode;
+  final VoidCallback onEdit;
+  final VoidCallback? onGuestRefresh;
 
   const _ExpenseCard({
     required this.expense,
     required this.coupleId,
     required this.currentUserName,
+    required this.mode,
+    required this.onEdit,
+    this.onGuestRefresh,
   });
 
   Color _categoryColor(String cat, bool isIncome) {
-    if (isIncome) return const Color(0xFF2E7D32);
+    if (isIncome) return kIncomeColor;
     switch (cat) {
       case 'Citas & Salidas':
       case 'Comida':
-        return const Color(0xFFC97A5E);
+        return kExpenseColor;
       case 'Supermercado':
-        return const Color(0xFF388E3C);
+        return const Color(0xFF059669);
       case 'Viajes & Escapadas':
-        return const Color(0xFF00838F);
+        return const Color(0xFF0284C7);
       case 'Servicios & Hogar':
       case 'Hogar':
-        return const Color(0xFFD84315);
+        return const Color(0xFFEA580C);
       case 'Detalles & Sorpresas':
-        return const Color(0xFF7B1FA2);
+        return const Color(0xFF9333EA);
       case 'Entretenimiento':
       case 'Suscripciones':
-        return const Color(0xFFE65100);
+        return const Color(0xFFD97706);
       case 'Ahorro Pareja':
-        return const Color(0xFF00695C);
+        return const Color(0xFF0D9488);
       case 'Transporte':
-        return const Color(0xFF1565C0);
+        return const Color(0xFF2563EB);
       default:
-        return const Color(0xFF7A9E8F);
+        return kSecondaryColor;
     }
   }
 
@@ -3221,6 +4817,8 @@ class _ExpenseCard extends StatelessWidget {
   }
 
   void _showReactionPicker(BuildContext context) {
+    if (mode == NidoUsageMode.guest) return;
+
     final reactions = [
       '🥰 ¡Gracias mi amor!',
       '❤️ ¡Anotado!',
@@ -3253,7 +4851,11 @@ class _ExpenseCard extends StatelessWidget {
               children: [
                 const Text(
                   'Reaccionar a este movimiento 💕',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kTextDark),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: kTextDark,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -3269,13 +4871,24 @@ class _ExpenseCard extends StatelessWidget {
                   children: reactions.map((r) {
                     final isSelected = selectedReaction == r;
                     return ActionChip(
-                      label: Text(r, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      backgroundColor: isSelected ? kPrimaryColor.withValues(alpha: 0.12) : kBackgroundColor,
+                      label: Text(
+                        r,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      backgroundColor: isSelected
+                          ? kPrimaryColor.withValues(alpha: 0.15)
+                          : kBackgroundColor,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: isSelected ? kPrimaryColor : kBorderColor),
+                        side: BorderSide(
+                          color: isSelected ? kPrimaryColor : kBorderColor,
+                        ),
                       ),
-                      onPressed: () => setModalState(() => selectedReaction = r),
+                      onPressed: () =>
+                          setModalState(() => selectedReaction = r),
                     );
                   }).toList(),
                 ),
@@ -3286,8 +4899,13 @@ class _ExpenseCard extends StatelessWidget {
                   textCapitalization: TextCapitalization.sentences,
                   decoration: const InputDecoration(
                     labelText: 'Nota personal (opcional)',
-                    hintText: 'Ej: Está bien, pero la próxima lo vemos juntos 💬',
-                    prefixIcon: Icon(Icons.edit_note_outlined, size: 20, color: kTextMuted),
+                    hintText:
+                        'Ej: Está bien, pero la próxima lo vemos juntos 💬',
+                    prefixIcon: Icon(
+                      Icons.edit_note_outlined,
+                      size: 20,
+                      color: kTextMuted,
+                    ),
                     alignLabelWithHint: true,
                   ),
                 ),
@@ -3295,23 +4913,17 @@ class _ExpenseCard extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () async {
                     final note = noteController.text.trim();
-                    if (selectedReaction == null && note.isEmpty) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text('Elige una reacción o escribe una nota'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                      return;
-                    }
+                    if (selectedReaction == null && note.isEmpty) return;
 
-                    final reactionText = [
-                      if (selectedReaction != null) selectedReaction,
+                    final String reactionText = [
+                      if (selectedReaction != null) selectedReaction!,
                       if (note.isNotEmpty) note,
                     ].join(' · ');
 
                     Navigator.pop(ctx);
-                    final updatedReactions = Map<String, String>.from(expense.reactions);
+                    final updatedReactions = Map<String, String>.from(
+                      expense.reactions,
+                    );
                     updatedReactions[currentUserName] = reactionText;
 
                     await FirebaseFirestore.instance
@@ -3321,6 +4933,11 @@ class _ExpenseCard extends StatelessWidget {
                         .doc(expense.id)
                         .update({'reactions': updatedReactions});
 
+                    showLocalNotification(
+                      '💬 Comentario de $currentUserName',
+                      'Reaccionó en ${expense.description.isEmpty ? 'movimiento' : expense.description}: "$reactionText"',
+                    );
+
                     HapticFeedback.lightImpact();
                   },
                   style: ElevatedButton.styleFrom(
@@ -3328,9 +4945,14 @@ class _ExpenseCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Enviar respuesta', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Enviar respuesta',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
@@ -3360,7 +4982,11 @@ class _ExpenseCard extends StatelessWidget {
           ),
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
-          child: const Icon(Icons.delete_outline, color: kDangerColor),
+          child: const Icon(
+            Icons.delete_outline,
+            color: kDangerColor,
+            size: 24,
+          ),
         ),
         background: const SizedBox.shrink(),
         confirmDismiss: (_) async {
@@ -3368,11 +4994,16 @@ class _ExpenseCard extends StatelessWidget {
           await showDialog<void>(
             context: context,
             builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               backgroundColor: kSurfaceColor,
               title: Text(
                 isIncome ? '¿Eliminar ingreso?' : '¿Eliminar gasto?',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               content: Text(
                 expense.description.isEmpty
@@ -3383,7 +5014,10 @@ class _ExpenseCard extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancelar', style: TextStyle(color: kTextMuted)),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: kTextMuted),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -3402,13 +5036,20 @@ class _ExpenseCard extends StatelessWidget {
           );
           return confirm;
         },
-        onDismissed: (_) {
-          FirebaseFirestore.instance
-              .collection('couples')
-              .doc(coupleId)
-              .collection('expenses')
-              .doc(expense.id)
-              .delete();
+        onDismissed: (_) async {
+          if (mode == NidoUsageMode.guest) {
+            final list = await LocalGuestStorage.getExpenses();
+            list.removeWhere((item) => item['id'] == expense.id);
+            await LocalGuestStorage.saveExpenses(list);
+            if (onGuestRefresh != null) onGuestRefresh!();
+          } else {
+            await FirebaseFirestore.instance
+                .collection('couples')
+                .doc(coupleId)
+                .collection('expenses')
+                .doc(expense.id)
+                .delete();
+          }
           HapticFeedback.lightImpact();
         },
         child: Container(
@@ -3419,7 +5060,7 @@ class _ExpenseCard extends StatelessWidget {
             border: Border.all(color: kBorderColor, width: 1.0),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withValues(alpha: 0.04),
+                color: accentColor.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -3428,13 +5069,7 @@ class _ExpenseCard extends StatelessWidget {
           child: IntrinsicHeight(
             child: Row(
               children: [
-                // Barra lateral de color según categoría
-                Container(
-                  width: 5,
-                  color: accentColor,
-                ),
-
-                // Contenido principal de la tarjeta
+                Container(width: 5, color: accentColor),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(14.0),
@@ -3442,12 +5077,11 @@ class _ExpenseCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            // Emojicon contenedor
                             Container(
                               width: 42,
                               height: 42,
                               decoration: BoxDecoration(
-                                color: accentColor.withValues(alpha: 0.1),
+                                color: accentColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               alignment: Alignment.center,
@@ -3458,52 +5092,49 @@ class _ExpenseCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 12),
 
-                            // Título & Subtítulo
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          expense.description.isEmpty
-                                              ? (isIncome ? 'Ingreso al nido' : 'Gasto general')
-                                              : expense.description,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: kTextDark,
-                                            fontSize: 14,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
+                                  Text(
+                                    expense.description.isEmpty
+                                        ? (isIncome
+                                              ? 'Ingreso registrado'
+                                              : 'Gasto general')
+                                        : expense.description,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: kTextDark,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 3),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        '${expense.category} · ${formatDate(expense.date)}',
-                                        style: const TextStyle(color: kTextMuted, fontSize: 11, fontWeight: FontWeight.w500),
-                                      ),
-                                    ],
+                                  Text(
+                                    '${expense.category} · ${formatDate(expense.date)}',
+                                    style: const TextStyle(
+                                      color: kTextMuted,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
 
-                            // Monto & Badge
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: isIncome
-                                        ? Colors.green.shade50
-                                        : accentColor.withValues(alpha: 0.08),
+                                        ? kIncomeColor.withValues(alpha: 0.12)
+                                        : kExpenseColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -3511,7 +5142,9 @@ class _ExpenseCard extends StatelessWidget {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 14,
-                                      color: isIncome ? Colors.green.shade800 : kTextDark,
+                                      color: isIncome
+                                          ? kIncomeColor
+                                          : kExpenseColor,
                                     ),
                                   ),
                                 ),
@@ -3522,12 +5155,13 @@ class _ExpenseCard extends StatelessWidget {
 
                         const SizedBox(height: 8),
 
-                        // Fila inferior de detalles (Creador, Origen, Reacción)
                         Row(
                           children: [
-                            // Badge de autor
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: kBackgroundColor,
                                 borderRadius: BorderRadius.circular(6),
@@ -3539,60 +5173,104 @@ class _ExpenseCard extends StatelessWidget {
                                     backgroundColor: accentColor,
                                     child: Text(
                                       initial,
-                                      style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     expense.createdBy,
-                                    style: const TextStyle(fontSize: 10, color: kTextMuted, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: kTextMuted,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 6),
 
-                            // Badge Origen/Destino
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: kBackgroundColor,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 '📍 ${expense.sourceOrDestination}',
-                                style: const TextStyle(fontSize: 10, color: kTextMuted, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: kTextMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
 
                             const Spacer(),
 
-                            // Botón reaccionar
                             IconButton(
-                              icon: const Icon(Icons.favorite_border_rounded, size: 16, color: kAccentColor),
-                              onPressed: () => _showReactionPicker(context),
-                              tooltip: 'Reaccionar',
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 16,
+                                color: kTextMuted,
+                              ),
+                              onPressed: onEdit,
+                              tooltip: 'Editar movimiento',
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
+                            if (mode == NidoUsageMode.couple) ...[
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.favorite_border_rounded,
+                                  size: 16,
+                                  color: kAccentColor,
+                                ),
+                                onPressed: () => _showReactionPicker(context),
+                                tooltip: 'Reaccionar',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
                           ],
                         ),
 
                         if (expense.reactions.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Row(
-                            children: expense.reactions.entries.map((e) => Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: kPrimaryColor.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${e.key}: ${e.value}',
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: kPrimaryColor),
-                              ),
-                            )).toList(),
+                            children: expense.reactions.entries
+                                .map(
+                                  (e) => Container(
+                                    margin: const EdgeInsets.only(right: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: kPrimaryColor.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '${e.key}: ${e.value}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: kPrimaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ],
                       ],
@@ -3609,16 +5287,18 @@ class _ExpenseCard extends StatelessWidget {
 }
 
 // ==========================================
-// PANTALLA 2: LISTA DE COMPRAS
+// PANTALLA 3: LISTA DE COMPRAS
 // ==========================================
 class ShoppingListScreen extends StatefulWidget {
   final String coupleId;
   final String userId;
+  final NidoUsageMode mode;
 
   const ShoppingListScreen({
     super.key,
     required this.coupleId,
     required this.userId,
+    required this.mode,
   });
 
   @override
@@ -3628,6 +5308,20 @@ class ShoppingListScreen extends StatefulWidget {
 class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final _itemController = TextEditingController();
   bool _isAdding = false;
+  List<Map<String, dynamic>> _guestShopping = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == NidoUsageMode.guest) {
+      _loadGuestShopping();
+    }
+  }
+
+  Future<void> _loadGuestShopping() async {
+    final list = await LocalGuestStorage.getShoppingList();
+    if (mounted) setState(() => _guestShopping = list);
+  }
 
   @override
   void dispose() {
@@ -3641,18 +5335,29 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
     setState(() => _isAdding = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('couples')
-          .doc(widget.coupleId)
-          .collection('shopping_list')
-          .add({
-        'name': text,
-        'title': text,
-        'item': text,
-        'isBought': false,
-        'date': Timestamp.now(),
-        'addedBy': widget.userId,
-      });
+      if (widget.mode == NidoUsageMode.guest) {
+        _guestShopping.add({
+          'id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'name': text,
+          'isBought': false,
+          'date': DateTime.now().toIso8601String(),
+        });
+        await LocalGuestStorage.saveShoppingList(_guestShopping);
+        _loadGuestShopping();
+      } else {
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('shopping_list')
+            .add({
+              'name': text,
+              'title': text,
+              'item': text,
+              'isBought': false,
+              'date': Timestamp.now(),
+              'addedBy': widget.userId,
+            });
+      }
       _itemController.clear();
       HapticFeedback.lightImpact();
     } finally {
@@ -3660,17 +5365,127 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     }
   }
 
-  Future<void> _toggleItem(
-      String id, bool currentValue, String name) async {
+  Future<void> _editarItem(String docId, String currentName) async {
+    final editCtrl = TextEditingController(text: currentName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Modificar Artículo',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: editCtrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Nombre del artículo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newText = editCtrl.text.trim();
+              if (newText.isNotEmpty) {
+                if (widget.mode == NidoUsageMode.guest) {
+                  final idx = _guestShopping.indexWhere(
+                    (i) => i['id'] == docId,
+                  );
+                  if (idx != -1) {
+                    _guestShopping[idx]['name'] = newText;
+                    await LocalGuestStorage.saveShoppingList(_guestShopping);
+                    _loadGuestShopping();
+                  }
+                } else {
+                  await FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .collection('shopping_list')
+                      .doc(docId)
+                      .update({
+                        'name': newText,
+                        'title': newText,
+                        'item': newText,
+                      });
+                }
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+              editCtrl.dispose();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _eliminarItem(String docId, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('¿Eliminar artículo?'),
+        content: Text('¿Seguro que quieres borrar "$name" de la lista?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kDangerColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (widget.mode == NidoUsageMode.guest) {
+        _guestShopping.removeWhere((i) => i['id'] == docId);
+        await LocalGuestStorage.saveShoppingList(_guestShopping);
+        _loadGuestShopping();
+      } else {
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('shopping_list')
+            .doc(docId)
+            .delete();
+      }
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  Future<void> _toggleItem(String id, bool currentValue, String name) async {
     if (!currentValue) {
       _preguntarConvertirAGasto(id, name);
     } else {
-      await FirebaseFirestore.instance
-          .collection('couples')
-          .doc(widget.coupleId)
-          .collection('shopping_list')
-          .doc(id)
-          .update({'isBought': false});
+      if (widget.mode == NidoUsageMode.guest) {
+        final idx = _guestShopping.indexWhere((i) => i['id'] == id);
+        if (idx != -1) {
+          _guestShopping[idx]['isBought'] = false;
+          await LocalGuestStorage.saveShoppingList(_guestShopping);
+          _loadGuestShopping();
+        }
+      } else {
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('shopping_list')
+            .doc(id)
+            .update({'isBought': false});
+      }
     }
   }
 
@@ -3695,7 +5510,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Ingresa el monto para registrarlo automáticamente en gastos compartidos.',
+              'Ingresa el monto para registrarlo automáticamente en gastos.',
               style: TextStyle(fontSize: 13, color: kTextMuted),
             ),
             const SizedBox(height: 16),
@@ -3718,12 +5533,21 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         actions: [
           TextButton(
             onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('couples')
-                  .doc(widget.coupleId)
-                  .collection('shopping_list')
-                  .doc(itemId)
-                  .update({'isBought': true});
+              if (widget.mode == NidoUsageMode.guest) {
+                final idx = _guestShopping.indexWhere((i) => i['id'] == itemId);
+                if (idx != -1) {
+                  _guestShopping[idx]['isBought'] = true;
+                  await LocalGuestStorage.saveShoppingList(_guestShopping);
+                  _loadGuestShopping();
+                }
+              } else {
+                await FirebaseFirestore.instance
+                    .collection('couples')
+                    .doc(widget.coupleId)
+                    .collection('shopping_list')
+                    .doc(itemId)
+                    .update({'isBought': true});
+              }
               if (ctx.mounted) Navigator.pop(ctx);
               amountController.dispose();
             },
@@ -3736,26 +5560,47 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             onPressed: () async {
               final val = parseFormattedAmount(amountController.text);
               if (val > 0) {
-                final batch = FirebaseFirestore.instance.batch();
-                final expenseRef = FirebaseFirestore.instance
-                    .collection('couples')
-                    .doc(widget.coupleId)
-                    .collection('expenses')
-                    .doc();
-                batch.set(expenseRef, {
-                  'amount': val,
-                  'description': 'Supermercado: $name',
-                  'category': 'Supermercado',
-                  'createdBy': widget.userId,
-                  'date': Timestamp.now(),
-                });
-                final itemRef = FirebaseFirestore.instance
-                    .collection('couples')
-                    .doc(widget.coupleId)
-                    .collection('shopping_list')
-                    .doc(itemId);
-                batch.delete(itemRef);
-                await batch.commit();
+                if (widget.mode == NidoUsageMode.guest) {
+                  final expList = await LocalGuestStorage.getExpenses();
+                  expList.add(
+                    Expense(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: val,
+                      description: 'Supermercado: $name',
+                      category: 'Supermercado',
+                      createdBy: 'Invitado',
+                      date: DateTime.now(),
+                      type: 'expense',
+                    ).toJson(),
+                  );
+                  await LocalGuestStorage.saveExpenses(expList);
+
+                  _guestShopping.removeWhere((i) => i['id'] == itemId);
+                  await LocalGuestStorage.saveShoppingList(_guestShopping);
+                  _loadGuestShopping();
+                } else {
+                  final batch = FirebaseFirestore.instance.batch();
+                  final expenseRef = FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .collection('expenses')
+                      .doc();
+                  batch.set(expenseRef, {
+                    'amount': val,
+                    'description': 'Supermercado: $name',
+                    'category': 'Supermercado',
+                    'createdBy': widget.userId,
+                    'date': Timestamp.now(),
+                    'type': 'expense',
+                  });
+                  final itemRef = FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .collection('shopping_list')
+                      .doc(itemId);
+                  batch.delete(itemRef);
+                  await batch.commit();
+                }
               }
               if (ctx.mounted) Navigator.pop(ctx);
               amountController.dispose();
@@ -3778,7 +5623,6 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       appBar: AppBar(title: const Text('Lista de Compras')),
       body: Column(
         children: [
-          // Input de agregar item
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
@@ -3826,122 +5670,174 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             ),
           ),
 
-          // Lista
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('couples')
-                  .doc(widget.coupleId)
-                  .collection('shopping_list')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: kPrimaryColor),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return _EmptyState(
-                    icon: Icons.error_outline,
-                    title: 'No se pudo cargar la lista',
-                    subtitle: snapshot.error.toString(),
-                  );
-                }
-
-                final docs = [...(snapshot.data?.docs ?? [])];
-                docs.sort((a, b) {
-                  final aData = a.data() as Map<String, dynamic>;
-                  final bData = b.data() as Map<String, dynamic>;
-                  final aBought = (aData['isBought'] as bool?) ?? false;
-                  final bBought = (bData['isBought'] as bool?) ?? false;
-                  if (aBought != bBought) return aBought ? 1 : -1;
-                  final aDate =
-                      (aData['date'] as Timestamp?)?.toDate() ?? DateTime(0);
-                  final bDate =
-                      (bData['date'] as Timestamp?)?.toDate() ?? DateTime(0);
-                  return aDate.compareTo(bDate);
-                });
-
-                if (docs.isEmpty) {
-                  return const _EmptyState(
-                    icon: Icons.shopping_cart_outlined,
-                    title: 'Lista vacía',
-                    subtitle: 'Añade los artículos que necesitan comprar.',
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: docs.length,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final bool isBought = (data['isBought'] as bool?) ?? false;
-
-                    final String itemName = (data['name'] as String?) ??
-                        (data['title'] as String?) ??
-                        (data['item'] as String?) ??
-                        (data['description'] as String?) ??
-                        'Artículo sin nombre';
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8.0),
-                      decoration: BoxDecoration(
-                        color: isBought
-                            ? kBackgroundColor
-                            : kSurfaceColor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isBought
-                              ? kBorderColor.withValues(alpha: 0.5)
-                              : kBorderColor,
-                          width: 1.0,
-                        ),
-                      ),
-                      child: ListTile(
-                        title: Text(
-                          itemName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            decoration: isBought
-                                ? TextDecoration.lineThrough
-                                : null,
-                            color: isBought ? kTextMuted : kTextDark,
+            child: widget.mode == NidoUsageMode.guest
+                ? _buildShoppingListUI(
+                    _guestShopping
+                        .map(
+                          (data) => _ShoppingItemWrapper(
+                            id: (data['id'] as String?) ?? '',
+                            name: (data['name'] as String?) ?? 'Artículo',
+                            isBought: (data['isBought'] as bool?) ?? false,
                           ),
-                        ),
-                        trailing: Checkbox(
-                          value: isBought,
-                          activeColor: kSecondaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
+                        )
+                        .toList(),
+                  )
+                : StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('couples')
+                        .doc(widget.coupleId)
+                        .collection('shopping_list')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: kPrimaryColor,
                           ),
-                          onChanged: (_) => _toggleItem(
-                            doc.id,
-                            isBought,
-                            itemName,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                        );
+                      }
+
+                      final docs = snapshot.data?.docs ?? [];
+                      final items = docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return _ShoppingItemWrapper(
+                          id: doc.id,
+                          name:
+                              (data['name'] as String?) ??
+                              (data['title'] as String?) ??
+                              'Artículo',
+                          isBought: (data['isBought'] as bool?) ?? false,
+                        );
+                      }).toList();
+
+                      return _buildShoppingListUI(items);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildShoppingListUI(List<_ShoppingItemWrapper> items) {
+    if (items.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.shopping_cart_outlined,
+        title: 'Lista vacía',
+        subtitle: 'Añade los artículos que necesitan comprar.',
+      );
+    }
+
+    return ListView.builder(
+      itemCount: items.length,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8.0),
+          decoration: BoxDecoration(
+            color: item.isBought ? kBackgroundColor : kSurfaceColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: item.isBought
+                  ? kBorderColor.withValues(alpha: 0.5)
+                  : kBorderColor,
+              width: 1.0,
+            ),
+          ),
+          child: ListTile(
+            title: Text(
+              item.name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                decoration: item.isBought ? TextDecoration.lineThrough : null,
+                color: item.isBought ? kTextMuted : kTextDark,
+              ),
+            ),
+            leading: Checkbox(
+              value: item.isBought,
+              activeColor: kSecondaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              onChanged: (_) => _toggleItem(item.id, item.isBought, item.name),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: kTextMuted,
+                  ),
+                  onPressed: () => _editarItem(item.id, item.name),
+                  tooltip: 'Modificar',
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: kDangerColor,
+                  ),
+                  onPressed: () => _eliminarItem(item.id, item.name),
+                  tooltip: 'Eliminar',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ShoppingItemWrapper {
+  final String id;
+  final String name;
+  final bool isBought;
+
+  _ShoppingItemWrapper({
+    required this.id,
+    required this.name,
+    required this.isBought,
+  });
 }
 
 // ==========================================
-// PANTALLA 3: METAS DE AHORRO
+// PANTALLA 4: METAS DE AHORRO
 // ==========================================
-class SavingsGoalsScreen extends StatelessWidget {
+class SavingsGoalsScreen extends StatefulWidget {
   final String coupleId;
-  const SavingsGoalsScreen({super.key, required this.coupleId});
+  final NidoUsageMode mode;
+
+  const SavingsGoalsScreen({
+    super.key,
+    required this.coupleId,
+    required this.mode,
+  });
+
+  @override
+  State<SavingsGoalsScreen> createState() => _SavingsGoalsScreenState();
+}
+
+class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
+  List<Map<String, dynamic>> _guestSavings = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == NidoUsageMode.guest) {
+      _loadGuestSavings();
+    }
+  }
+
+  Future<void> _loadGuestSavings() async {
+    final list = await LocalGuestStorage.getSavings();
+    if (mounted) setState(() => _guestSavings = list);
+  }
 
   void _addGoal(BuildContext context) {
     final titleController = TextEditingController();
@@ -3993,27 +5889,35 @@ class SavingsGoalsScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              titleController.dispose();
-              targetController.dispose();
-            },
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar', style: TextStyle(color: kTextMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
               final target = parseFormattedAmount(targetController.text);
-              if (titleController.text.trim().isNotEmpty && target > 0) {
-                await FirebaseFirestore.instance
-                    .collection('couples')
-                    .doc(coupleId)
-                    .collection('savings')
-                    .add({
-                  'title': titleController.text.trim(),
-                  'target': target,
-                  'current': 0.0,
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
+              final title = titleController.text.trim();
+              if (title.isNotEmpty && target > 0) {
+                if (widget.mode == NidoUsageMode.guest) {
+                  _guestSavings.add({
+                    'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                    'title': title,
+                    'target': target,
+                    'current': 0.0,
+                  });
+                  await LocalGuestStorage.saveSavings(_guestSavings);
+                  _loadGuestSavings();
+                } else {
+                  await FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .collection('savings')
+                      .add({
+                        'title': title,
+                        'target': target,
+                        'current': 0.0,
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                }
               }
               if (ctx.mounted) Navigator.pop(ctx);
               titleController.dispose();
@@ -4029,6 +5933,143 @@ class SavingsGoalsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _editarMeta(
+    BuildContext context,
+    String goalId,
+    String title,
+    double target,
+    double current,
+  ) {
+    final titleCtrl = TextEditingController(text: title);
+    final targetCtrl = TextEditingController(text: target.toInt().toString());
+    final currentCtrl = TextEditingController(text: current.toInt().toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Modificar Meta de Ahorro',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(labelText: 'Título de la meta'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: targetCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
+              decoration: const InputDecoration(labelText: 'Monto objetivo \$'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: currentCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
+              decoration: const InputDecoration(
+                labelText: 'Saldo actual ahorrado \$',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newTitle = titleCtrl.text.trim();
+              final newTarget = parseFormattedAmount(targetCtrl.text);
+              final newCurrent = parseFormattedAmount(currentCtrl.text);
+
+              if (newTitle.isNotEmpty && newTarget > 0) {
+                if (widget.mode == NidoUsageMode.guest) {
+                  final idx = _guestSavings.indexWhere(
+                    (s) => s['id'] == goalId,
+                  );
+                  if (idx != -1) {
+                    _guestSavings[idx]['title'] = newTitle;
+                    _guestSavings[idx]['target'] = newTarget;
+                    _guestSavings[idx]['current'] = newCurrent;
+                    await LocalGuestStorage.saveSavings(_guestSavings);
+                    _loadGuestSavings();
+                  }
+                } else {
+                  await FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .collection('savings')
+                      .doc(goalId)
+                      .update({
+                        'title': newTitle,
+                        'target': newTarget,
+                        'current': newCurrent,
+                      });
+                }
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+              titleCtrl.dispose();
+              targetCtrl.dispose();
+              currentCtrl.dispose();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _borrarMeta(BuildContext context, String goalId, String title) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('¿Borrar meta de ahorro?'),
+        content: Text('¿Seguro que deseas borrar "$title"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kDangerColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Borrar Meta'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (widget.mode == NidoUsageMode.guest) {
+        _guestSavings.removeWhere((s) => s['id'] == goalId);
+        await LocalGuestStorage.saveSavings(_guestSavings);
+        _loadGuestSavings();
+      } else {
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('savings')
+            .doc(goalId)
+            .delete();
+      }
+      HapticFeedback.lightImpact();
+    }
   }
 
   void _contribuirAhorro(
@@ -4076,22 +6117,33 @@ class SavingsGoalsScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              amountController.dispose();
-            },
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar', style: TextStyle(color: kTextMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
               final val = parseFormattedAmount(amountController.text);
               if (val > 0) {
-                await FirebaseFirestore.instance
-                    .collection('couples')
-                    .doc(coupleId)
-                    .collection('savings')
-                    .doc(goalId)
-                    .update({'current': FieldValue.increment(val)});
+                if (widget.mode == NidoUsageMode.guest) {
+                  final idx = _guestSavings.indexWhere(
+                    (s) => s['id'] == goalId,
+                  );
+                  if (idx != -1) {
+                    final old =
+                        (_guestSavings[idx]['current'] as num?)?.toDouble() ??
+                        0.0;
+                    _guestSavings[idx]['current'] = old + val;
+                    await LocalGuestStorage.saveSavings(_guestSavings);
+                    _loadGuestSavings();
+                  }
+                } else {
+                  await FirebaseFirestore.instance
+                      .collection('couples')
+                      .doc(widget.coupleId)
+                      .collection('savings')
+                      .doc(goalId)
+                      .update({'current': FieldValue.increment(val)});
+                }
               }
               if (ctx.mounted) Navigator.pop(ctx);
               amountController.dispose();
@@ -4112,188 +6164,46 @@ class SavingsGoalsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Metas de Ahorro')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('couples')
-            .doc(coupleId)
-            .collection('savings')
-            .orderBy('createdAt', descending: false)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: kPrimaryColor),
-            );
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          if (docs.isEmpty) {
-            return const _EmptyState(
-              icon: Icons.savings_outlined,
-              title: 'Sin metas aún',
-              subtitle: 'Crea su primera meta de ahorro juntos.',
-            );
-          }
-
-          // Ordenar: no completadas primero, luego completadas
-          final sorted = [...docs];
-          sorted.sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>;
-            final bData = b.data() as Map<String, dynamic>;
-            final aTarget = ((aData['target'] as num?) ?? 0).toDouble();
-            final aCurrent = ((aData['current'] as num?) ?? 0).toDouble();
-            final bTarget = ((bData['target'] as num?) ?? 0).toDouble();
-            final bCurrent = ((bData['current'] as num?) ?? 0).toDouble();
-            final aDone = aTarget > 0 && aCurrent >= aTarget;
-            final bDone = bTarget > 0 && bCurrent >= bTarget;
-            if (aDone && !bDone) return 1;
-            if (!aDone && bDone) return -1;
-            return 0;
-          });
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: sorted.length,
-            itemBuilder: (context, index) {
-              final doc = sorted[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final double target =
-                  ((data['target'] as num?) ?? 0.0).toDouble();
-              final double current =
-                  ((data['current'] as num?) ?? 0.0).toDouble();
-              // Protección contra división por cero
-              final double progress =
-                  target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
-              final bool isCompleted = target > 0 && current >= target;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: isCompleted
-                      ? kSecondaryColor.withValues(alpha: 0.06)
-                      : kSurfaceColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isCompleted
-                        ? kSecondaryColor.withValues(alpha: 0.3)
-                        : kBorderColor,
-                    width: 1.2,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            (data['title'] as String?) ?? '',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: kTextDark,
-                            ),
-                          ),
-                        ),
-                        if (isCompleted)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: kSecondaryColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              '✓ Logrado',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: kSecondaryColor,
-                              ),
-                            ),
-                          ),
-                      ],
+      body: widget.mode == NidoUsageMode.guest
+          ? _buildSavingsUI(
+              _guestSavings
+                  .map(
+                    (s) => _SavingsGoalWrapper(
+                      id: (s['id'] as String?) ?? '',
+                      title: (s['title'] as String?) ?? 'Meta',
+                      target: ((s['target'] as num?) ?? 0.0).toDouble(),
+                      current: ((s['current'] as num?) ?? 0.0).toDouble(),
                     ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 7,
-                        backgroundColor: kBorderColor,
-                        color: isCompleted ? kSecondaryColor : kPrimaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${formatCurrency(current)} de ${formatCurrency(target)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: kTextMuted,
-                          ),
-                        ),
-                        Text(
-                          '${(progress * 100).toInt()}%',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: kTextDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!isCompleted) ...[
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _contribuirAhorro(
-                            context,
-                            doc.id,
-                            current,
-                            target,
-                          ),
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text(
-                            'Abonar',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kSurfaceColor,
-                            foregroundColor: kPrimaryColor,
-                            elevation: 0,
-                            side: const BorderSide(
-                              color: kPrimaryColor,
-                              width: 1.0,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
+                  )
+                  .toList(),
+            )
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('couples')
+                  .doc(widget.coupleId)
+                  .collection('savings')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: kPrimaryColor),
+                  );
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+                final goals = docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return _SavingsGoalWrapper(
+                    id: doc.id,
+                    title: (data['title'] as String?) ?? 'Meta',
+                    target: ((data['target'] as num?) ?? 0.0).toDouble(),
+                    current: ((data['current'] as num?) ?? 0.0).toDouble(),
+                  );
+                }).toList();
+
+                return _buildSavingsUI(goals);
+              },
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addGoal(context),
         elevation: 0,
@@ -4304,19 +6214,395 @@ class SavingsGoalsScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildSavingsUI(List<_SavingsGoalWrapper> goals) {
+    if (goals.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.savings_outlined,
+        title: 'Sin metas aún',
+        subtitle: 'Crea tu primera meta de ahorro.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+      itemCount: goals.length,
+      itemBuilder: (context, index) {
+        final goal = goals[index];
+        final double progress = goal.target > 0
+            ? (goal.current / goal.target).clamp(0.0, 1.0)
+            : 0.0;
+        final bool isCompleted = goal.target > 0 && goal.current >= goal.target;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? kSecondaryColor.withValues(alpha: 0.08)
+                : kSurfaceColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isCompleted
+                  ? kSecondaryColor.withValues(alpha: 0.4)
+                  : kBorderColor,
+              width: 1.2,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      goal.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: kTextDark,
+                      ),
+                    ),
+                  ),
+                  if (isCompleted)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: kSecondaryColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        '✓ Logrado',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: kSecondaryColor,
+                        ),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: kTextMuted,
+                    ),
+                    onPressed: () => _editarMeta(
+                      context,
+                      goal.id,
+                      goal.title,
+                      goal.target,
+                      goal.current,
+                    ),
+                    tooltip: 'Modificar meta',
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: kDangerColor,
+                    ),
+                    onPressed: () => _borrarMeta(context, goal.id, goal.title),
+                    tooltip: 'Borrar meta',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: kBorderColor,
+                  color: isCompleted ? kSecondaryColor : kPrimaryColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${formatCurrency(goal.current)} de ${formatCurrency(goal.target)}',
+                    style: const TextStyle(fontSize: 12, color: kTextMuted),
+                  ),
+                  Text(
+                    '${(progress * 100).toInt()}%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: kTextDark,
+                    ),
+                  ),
+                ],
+              ),
+              if (!isCompleted) ...[
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _contribuirAhorro(
+                      context,
+                      goal.id,
+                      goal.current,
+                      goal.target,
+                    ),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text(
+                      'Abonar',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kSurfaceColor,
+                      foregroundColor: kPrimaryColor,
+                      elevation: 0,
+                      side: const BorderSide(color: kPrimaryColor, width: 1.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SavingsGoalWrapper {
+  final String id;
+  final String title;
+  final double target;
+  final double current;
+
+  _SavingsGoalWrapper({
+    required this.id,
+    required this.title,
+    required this.target,
+    required this.current,
+  });
 }
 
 // ==========================================
-// BOTTOM SHEET: AGREGAR MOVIMIENTO (GASTO O INGRESO)
+// PANTALLA 5: HISTÓRICO DE PERIODOS
+// ==========================================
+class HistoryScreen extends StatelessWidget {
+  final String coupleId;
+  final NidoUsageMode mode;
+
+  const HistoryScreen({super.key, required this.coupleId, required this.mode});
+
+  @override
+  Widget build(BuildContext context) {
+    if (mode == NidoUsageMode.guest) {
+      return FutureBuilder<List<Map<String, dynamic>>>(
+        future: LocalGuestStorage.getHistory(),
+        builder: (context, snapshot) {
+          final raw = snapshot.data ?? [];
+          final periods = raw.map((e) => HistoryPeriod.fromJson(e)).toList();
+          return _buildHistoryUI(periods);
+        },
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('history_periods')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: kPrimaryColor),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final periods = docs
+            .map((d) => HistoryPeriod.fromFirestore(d))
+            .toList();
+
+        return _buildHistoryUI(periods);
+      },
+    );
+  }
+
+  Widget _buildHistoryUI(List<HistoryPeriod> periods) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Histórico de Periodos')),
+      body: periods.isEmpty
+          ? const _EmptyState(
+              icon: Icons.history_toggle_off_rounded,
+              title: 'Sin periodos archivados',
+              subtitle:
+                  'Usa "Archivar Periodo" en el Menú para guardar resúmenes de ciclos pasados.',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+              itemCount: periods.length,
+              itemBuilder: (context, index) {
+                final p = periods[index];
+                final isPositive = p.balance >= 0;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: kSurfaceColor,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: kBorderColor, width: 1.2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.history_rounded,
+                            color: kPrimaryColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            p.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: kTextDark,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isPositive
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              isPositive ? 'Superávit' : 'Déficit',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isPositive
+                                    ? kIncomeColor
+                                    : kExpenseColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Ingresos',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: kTextMuted,
+                                ),
+                              ),
+                              Text(
+                                formatCurrency(p.totalIncome),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: kIncomeColor,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Gastos',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: kTextMuted,
+                                ),
+                              ),
+                              Text(
+                                formatCurrency(p.totalExpense),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: kExpenseColor,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'Balance Final',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: kTextMuted,
+                                ),
+                              ),
+                              Text(
+                                formatCurrency(p.balance),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: isPositive
+                                      ? kIncomeColor
+                                      : kExpenseColor,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+// ==========================================
+// BOTTOM SHEET: AGREGAR O EDITAR MOVIMIENTO
 // ==========================================
 class AddExpenseBottomSheet extends StatefulWidget {
   final String coupleId;
   final String userName;
+  final NidoUsageMode mode;
+  final Expense? expenseToEdit;
+  final VoidCallback? onGuestRefresh;
 
   const AddExpenseBottomSheet({
     super.key,
     required this.coupleId,
     required this.userName,
+    required this.mode,
+    this.expenseToEdit,
+    this.onGuestRefresh,
   });
 
   @override
@@ -4327,12 +6613,12 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _sourceController = TextEditingController(text: 'Cuenta Principal');
-  
-  String _transactionType = 'expense'; // 'expense' o 'income'
+
+  String _transactionType = 'expense';
   String _selectedCategory = 'Citas & Salidas';
   bool _isSaving = false;
 
-  static const List<Map<String, dynamic>> _expenseCategories = [
+  static const List<Map<String, dynamic>> _defaultExpenseCategories = [
     {'name': 'Citas & Salidas', 'icon': Icons.local_bar_outlined},
     {'name': 'Supermercado', 'icon': Icons.shopping_cart_outlined},
     {'name': 'Viajes & Escapadas', 'icon': Icons.flight_outlined},
@@ -4344,7 +6630,7 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
     {'name': 'Otros', 'icon': Icons.more_horiz_outlined},
   ];
 
-  static const List<Map<String, dynamic>> _incomeCategories = [
+  static const List<Map<String, dynamic>> _defaultIncomeCategories = [
     {'name': 'Sueldo / Nómina', 'icon': Icons.attach_money_outlined},
     {'name': 'Freelance / Trabajo', 'icon': Icons.work_outline},
     {'name': 'Rendimientos', 'icon': Icons.trending_up_outlined},
@@ -4352,6 +6638,19 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
     {'name': 'Ahorro Previo', 'icon': Icons.account_balance_outlined},
     {'name': 'Otros', 'icon': Icons.more_horiz_outlined},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.expenseToEdit != null) {
+      final ex = widget.expenseToEdit!;
+      _amountController.text = ex.amount.toInt().toString();
+      _descriptionController.text = ex.description;
+      _sourceController.text = ex.sourceOrDestination;
+      _transactionType = ex.type;
+      _selectedCategory = ex.category;
+    }
+  }
 
   @override
   void dispose() {
@@ -4369,7 +6668,9 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
           content: const Text('Ingresa un monto válido'),
           backgroundColor: kDangerColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -4378,19 +6679,59 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
 
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('couples')
-          .doc(widget.coupleId)
-          .collection('expenses')
-          .add({
-        'type': _transactionType,
-        'amount': amount,
-        'description': _descriptionController.text.trim(),
-        'category': _selectedCategory,
-        'sourceOrDestination': _sourceController.text.trim().isEmpty ? 'General' : _sourceController.text.trim(),
-        'createdBy': widget.userName,
-        'date': Timestamp.now(),
-      });
+      if (widget.mode == NidoUsageMode.guest) {
+        final list = await LocalGuestStorage.getExpenses();
+        final exp = Expense(
+          id:
+              widget.expenseToEdit?.id ??
+              DateTime.now().millisecondsSinceEpoch.toString(),
+          type: _transactionType,
+          amount: amount,
+          description: _descriptionController.text.trim(),
+          category: _selectedCategory,
+          sourceOrDestination: _sourceController.text.trim().isEmpty
+              ? 'General'
+              : _sourceController.text.trim(),
+          createdBy: widget.userName,
+          date: widget.expenseToEdit?.date ?? DateTime.now(),
+        );
+
+        if (widget.expenseToEdit != null) {
+          final idx = list.indexWhere(
+            (i) => i['id'] == widget.expenseToEdit!.id,
+          );
+          if (idx != -1) list[idx] = exp.toJson();
+        } else {
+          list.add(exp.toJson());
+        }
+        await LocalGuestStorage.saveExpenses(list);
+        if (widget.onGuestRefresh != null) widget.onGuestRefresh!();
+      } else {
+        final collectionRef = FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('expenses');
+
+        final data = {
+          'type': _transactionType,
+          'amount': amount,
+          'description': _descriptionController.text.trim(),
+          'category': _selectedCategory,
+          'sourceOrDestination': _sourceController.text.trim().isEmpty
+              ? 'General'
+              : _sourceController.text.trim(),
+          'createdBy': widget.userName,
+          'date': widget.expenseToEdit != null
+              ? Timestamp.fromDate(widget.expenseToEdit!.date)
+              : Timestamp.now(),
+        };
+
+        if (widget.expenseToEdit != null) {
+          await collectionRef.doc(widget.expenseToEdit!.id).update(data);
+        } else {
+          await collectionRef.add(data);
+        }
+      }
 
       HapticFeedback.lightImpact();
       if (mounted) Navigator.pop(context);
@@ -4412,7 +6753,9 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
   Widget build(BuildContext context) {
     final keyboardPadding = MediaQuery.of(context).viewInsets.bottom;
     final isIncome = _transactionType == 'income';
-    final categories = isIncome ? _incomeCategories : _expenseCategories;
+    final categories = isIncome
+        ? _defaultIncomeCategories
+        : _defaultExpenseCategories;
 
     return Container(
       decoration: const BoxDecoration(
@@ -4425,236 +6768,244 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
         top: 16,
         bottom: 24 + keyboardPadding,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Barra de agarre
-          Align(
-            alignment: Alignment.center,
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: kBorderColor,
-                borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: kBorderColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Selector de Tipo de Movimiento [ Gasto | Ingreso ]
-          Container(
-            decoration: BoxDecoration(
-              color: kSurfaceColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kBorderColor),
-            ),
-            padding: const EdgeInsets.all(4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _transactionType = 'expense';
-                        _selectedCategory = 'Citas & Salidas';
-                      });
-                      HapticFeedback.selectionClick();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: !isIncome ? kPrimaryColor : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '➖ Registrar Gasto',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: !isIncome ? Colors.white : kTextMuted,
+            Container(
+              decoration: BoxDecoration(
+                color: kSurfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kBorderColor),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _transactionType = 'expense';
+                          _selectedCategory = 'Citas & Salidas';
+                        });
+                        HapticFeedback.selectionClick();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: !isIncome ? kExpenseColor : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '➖ Registrar Gasto',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: !isIncome ? Colors.white : kTextMuted,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _transactionType = 'income';
-                        _selectedCategory = 'Sueldo / Nómina';
-                      });
-                      HapticFeedback.selectionClick();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isIncome ? Colors.green.shade600 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '➕ Añadir Ingreso',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: isIncome ? Colors.white : kTextMuted,
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _transactionType = 'income';
+                          _selectedCategory = 'Sueldo / Nómina';
+                        });
+                        HapticFeedback.selectionClick();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isIncome ? kIncomeColor : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '➕ Añadir Ingreso',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: isIncome ? Colors.white : kTextMuted,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Input de monto
-          TextField(
-            controller: _amountController,
-            autofocus: true,
-            keyboardType: TextInputType.number,
-            inputFormatters: [ThousandsSeparatorInputFormatter()],
-            style: TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.w800,
-              color: isIncome ? Colors.green.shade700 : kTextDark,
-              letterSpacing: -1.5,
-            ),
-            textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              hintText: '0',
-              hintStyle: const TextStyle(
+            TextField(
+              controller: _amountController,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [ThousandsSeparatorInputFormatter()],
+              style: TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.w800,
-                color: kBorderColor,
+                color: isIncome ? kIncomeColor : kExpenseColor,
                 letterSpacing: -1.5,
               ),
-              filled: false,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              prefixText: isIncome ? '+ ' : '- ',
-              prefixStyle: TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.w800,
-                color: isIncome ? Colors.green.shade700 : kTextDark,
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
+                  color: kBorderColor,
+                  letterSpacing: -1.5,
+                ),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                prefixText: isIncome ? '+ ' : '- ',
+                prefixStyle: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
+                  color: isIncome ? kIncomeColor : kExpenseColor,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Input de descripción
-          TextField(
-            controller: _descriptionController,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: isIncome ? '¿De qué es este ingreso?' : '¿En qué se gastó?',
-              prefixIcon: const Icon(
-                Icons.notes_outlined,
-                size: 20,
-                color: kTextMuted,
+            TextField(
+              controller: _descriptionController,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: isIncome
+                    ? '¿De qué es este ingreso?'
+                    : '¿En qué se gastó?',
+                prefixIcon: const Icon(
+                  Icons.notes_outlined,
+                  size: 20,
+                  color: kTextMuted,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Input de Origen / Destino
-          TextField(
-            controller: _sourceController,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              labelText: isIncome ? 'Origen (ej: Cuenta Nómina, Efectivo)' : 'Método / Cuenta (ej: Tarjeta Compartida)',
-              prefixIcon: const Icon(
-                Icons.account_balance_wallet_outlined,
-                size: 20,
-                color: kTextMuted,
+            TextField(
+              controller: _sourceController,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: isIncome
+                    ? 'Origen (ej: Cuenta Nómina, Efectivo)'
+                    : 'Método / Cuenta (ej: Tarjeta, Efectivo)',
+                prefixIcon: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 20,
+                  color: kTextMuted,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Selector de categorías
-          SizedBox(
-            height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = _selectedCategory == cat['name'];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    showCheckmark: false,
-                    label: Text(
-                      cat['name'] as String,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : kTextDark,
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  final isSelected = _selectedCategory == cat['name'];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      showCheckmark: false,
+                      label: Text(
+                        cat['name'] as String,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : kTextDark,
+                        ),
+                      ),
+                      avatar: Icon(
+                        cat['icon'] as IconData,
+                        size: 14,
+                        color: isSelected ? Colors.white : kTextMuted,
+                      ),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        setState(
+                          () => _selectedCategory = cat['name'] as String,
+                        );
+                        HapticFeedback.selectionClick();
+                      },
+                      selectedColor: isIncome ? kIncomeColor : kExpenseColor,
+                      backgroundColor: kSurfaceColor,
+                      side: BorderSide(
+                        color: isSelected
+                            ? (isIncome ? kIncomeColor : kExpenseColor)
+                            : kBorderColor,
+                        width: 1.0,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    avatar: Icon(
-                      cat['icon'] as IconData,
-                      size: 14,
-                      color: isSelected ? Colors.white : kTextMuted,
-                    ),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(() => _selectedCategory = cat['name'] as String);
-                      HapticFeedback.selectionClick();
-                    },
-                    selectedColor: isIncome ? Colors.green.shade600 : kPrimaryColor,
-                    backgroundColor: kSurfaceColor,
-                    side: BorderSide(
-                      color: isSelected ? (isIncome ? Colors.green.shade600 : kPrimaryColor) : kBorderColor,
-                      width: 1.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Botón guardar
-          ElevatedButton(
-            onPressed: _isSaving ? null : _guardarMovimiento,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isIncome ? Colors.green.shade700 : kPrimaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: (isIncome ? Colors.green.shade700 : kPrimaryColor).withValues(alpha: 0.5),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                  );
+                },
               ),
             ),
-            child: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+            const SizedBox(height: 24),
+
+            ElevatedButton(
+              onPressed: _isSaving ? null : _guardarMovimiento,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isIncome ? kIncomeColor : kExpenseColor,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    (isIncome ? kIncomeColor : kExpenseColor).withValues(
+                      alpha: 0.5,
                     ),
-                  )
-                : Text(
-                    isIncome ? 'Guardar Ingreso' : 'Registrar Gasto',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      widget.expenseToEdit != null
+                          ? 'Guardar Cambios'
+                          : (isIncome ? 'Guardar Ingreso' : 'Registrar Gasto'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4686,7 +7037,7 @@ class _EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: kPrimaryColor.withValues(alpha: 0.08),
+                color: kPrimaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 32, color: kPrimaryColor),
@@ -4717,5 +7068,3 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
-
