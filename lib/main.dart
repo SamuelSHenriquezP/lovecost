@@ -27,9 +27,7 @@ Future<void> initLocalNotifications() async {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-    );
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   } catch (e) {
     debugPrint('Error iniciando notificaciones locales: $e');
   }
@@ -142,9 +140,9 @@ void main() async {
 // SISTEMA DE DISEÑO — PALETA DE COLORES VIVOS
 // ==========================================
 const Color kBackgroundColor = Color(0xFFF6F4F0);
-const Color kPrimaryColor = Color(0xFFE54B2A); // Terracota vivo y cálido
+const Color kPrimaryColor = Color(0xFF0D9488); // Teal sobrio y elegante
 const Color kSecondaryColor = Color(0xFF00897B); // Verde esmeralda vivo
-const Color kAccentColor = Color(0xFFFF6D00); // Coral / Naranja vivo
+const Color kAccentColor = Color(0xFF6366F1); // Índigo elegante (cero naranja)
 const Color kSurfaceColor = Color(0xFFFFFFFF);
 const Color kTextDark = Color(0xFF1E1917);
 const Color kTextMuted = Color(0xFF6B6361);
@@ -176,6 +174,7 @@ class LocalGuestStorage {
   static const String _keyHistory = 'nido_guest_history';
   static const String _keyBudget = 'nido_guest_budget';
   static const String _keyCategories = 'nido_guest_categories';
+  static const String _keyCycleStart = 'nido_guest_cycle_start';
 
   static Future<double> getBudget() async {
     final prefs = await SharedPreferences.getInstance();
@@ -185,6 +184,22 @@ class LocalGuestStorage {
   static Future<void> setBudget(double val) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyBudget, val);
+  }
+
+  static Future<DateTime> getCycleStartDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = prefs.getString(_keyCycleStart);
+    if (str != null) {
+      final dt = DateTime.tryParse(str);
+      if (dt != null) return dt;
+    }
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
+  }
+
+  static Future<void> setCycleStartDate(DateTime dt) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCycleStart, dt.toIso8601String());
   }
 
   static Future<List<Map<String, dynamic>>> getExpenses() async {
@@ -622,92 +637,122 @@ class HistoryPeriod {
 // ==========================================
 // APP PRINCIPAL
 // ==========================================
+// ==========================================
+// DARK MODE NOTIFIER
+// ==========================================
+final ValueNotifier<ThemeMode> nidoThemeMode = ValueNotifier(ThemeMode.light);
+
+// Dark palette constants
+const Color kDarkBackground = Color(0xFF0F172A);
+const Color kDarkSurface = Color(0xFF1E293B);
+const Color kDarkBorder = Color(0xFF334155);
+const Color kDarkTextDark = Color(0xFFF1F5F9);
+const Color kDarkTextMuted = Color(0xFF94A3B8);
+
 class NidoApp extends StatelessWidget {
   const NidoApp({super.key});
 
-  @override
-  Widget build(BuildContext context) {
+  ThemeData _buildTheme({required bool dark}) {
     final textTheme = GoogleFonts.plusJakartaSansTextTheme(
-      Theme.of(context).textTheme,
+      dark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
     );
 
-    return MaterialApp(
-      title: 'Nido — Finanzas',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        textTheme: textTheme,
-        scaffoldBackgroundColor: kBackgroundColor,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: kPrimaryColor,
-          primary: kPrimaryColor,
-          secondary: kSecondaryColor,
-          surface: kSurfaceColor,
+    final bg = dark ? kDarkBackground : kBackgroundColor;
+    final surface = dark ? kDarkSurface : kSurfaceColor;
+    final border = dark ? kDarkBorder : kBorderColor;
+    final textMain = dark ? kDarkTextDark : kTextDark;
+    final textMuted = dark ? kDarkTextMuted : kTextMuted;
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: dark ? Brightness.dark : Brightness.light,
+      textTheme: textTheme,
+      scaffoldBackgroundColor: bg,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: kPrimaryColor,
+        brightness: dark ? Brightness.dark : Brightness.light,
+        primary: kPrimaryColor,
+        secondary: kSecondaryColor,
+        surface: surface,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: bg,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: textMain),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          color: textMain,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
         ),
-        appBarTheme: AppBarTheme(
-          backgroundColor: kBackgroundColor,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          iconTheme: const IconThemeData(color: kTextDark),
-          titleTextStyle: GoogleFonts.plusJakartaSans(
-            color: kTextDark,
-            fontSize: 18,
+      ),
+      cardTheme: CardThemeData(
+        color: surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: border, width: 1.2),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: border, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: border, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kPrimaryColor, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kDangerColor, width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kDangerColor, width: 1.5),
+        ),
+        labelStyle: TextStyle(color: textMuted, fontSize: 14),
+      ),
+      dialogTheme: DialogThemeData(backgroundColor: surface),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: surface),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        indicatorColor: kPrimaryColor.withValues(alpha: 0.15),
+        elevation: 0,
+        labelTextStyle: WidgetStateProperty.all(
+          TextStyle(
+            fontSize: 12,
             fontWeight: FontWeight.w600,
-            letterSpacing: -0.3,
-          ),
-        ),
-        cardTheme: CardThemeData(
-          color: kSurfaceColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: kBorderColor, width: 1.2),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: kSurfaceColor,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorderColor, width: 1.2),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorderColor, width: 1.2),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kPrimaryColor, width: 1.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kDangerColor, width: 1.2),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kDangerColor, width: 1.5),
-          ),
-          labelStyle: const TextStyle(color: kTextMuted, fontSize: 14),
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: kSurfaceColor,
-          indicatorColor: kPrimaryColor.withValues(alpha: 0.15),
-          elevation: 0,
-          labelTextStyle: WidgetStateProperty.all(
-            const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: kTextDark,
-            ),
+            color: textMain,
           ),
         ),
       ),
-      home: const NidoSplash(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: nidoThemeMode,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          title: 'Nido — Finanzas',
+          debugShowCheckedModeBanner: false,
+          themeMode: mode,
+          theme: _buildTheme(dark: false),
+          darkTheme: _buildTheme(dark: true),
+          home: const NidoSplash(),
+        );
+      },
     );
   }
 }
@@ -2852,7 +2897,6 @@ class _MainNavigationState extends State<MainNavigation> {
         mode: widget.mode,
       ),
       SavingsGoalsScreen(coupleId: widget.coupleId, mode: widget.mode),
-      HistoryScreen(coupleId: widget.coupleId, mode: widget.mode),
     ];
 
     return Scaffold(
@@ -2891,11 +2935,6 @@ class _MainNavigationState extends State<MainNavigation> {
               icon: Icon(Icons.savings_outlined, color: kTextMuted),
               selectedIcon: Icon(Icons.savings_rounded, color: kPrimaryColor),
               label: 'Ahorros',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.history_toggle_off_rounded, color: kTextMuted),
-              selectedIcon: Icon(Icons.history_rounded, color: kPrimaryColor),
-              label: 'Histórico',
             ),
           ],
         ),
@@ -3072,13 +3111,21 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
               'closedBy': widget.userName,
               'createdAt': FieldValue.serverTimestamp(),
             });
+        await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .update({'cycle_start_date': FieldValue.serverTimestamp()});
+      }
+
+      if (widget.mode == NidoUsageMode.guest) {
+        await LocalGuestStorage.setCycleStartDate(now);
       }
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✨ Periodo archivado en el Histórico'),
+            content: Text('✨ Periodo archivado e iniciado nuevo ciclo'),
             backgroundColor: kSecondaryColor,
             behavior: SnackBarBehavior.floating,
           ),
@@ -3096,21 +3143,97 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
     }
   }
 
+  void _gestionarCategorias() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Gestionar Categorías', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: widget.mode == NidoUsageMode.guest 
+                ? null 
+                : FirebaseFirestore.instance.collection('couples').doc(widget.coupleId).collection('categories').snapshots(),
+            builder: (context, snapshot) {
+              if (widget.mode == NidoUsageMode.guest) {
+                return FutureBuilder<List<Map<String, dynamic>>>(
+                  future: LocalGuestStorage.getCategories(),
+                  builder: (ctx, snap) {
+                    if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
+                    final cats = snap.data!.map((e) => CustomCategory.fromJson(e)).toList();
+                    if (cats.isEmpty) return const Text('No hay categorías personalizadas', style: TextStyle(color: kTextMuted));
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: cats.length,
+                      itemBuilder: (context, index) {
+                        final cat = cats[index];
+                        return ListTile(
+                          leading: Text(cat.emoji, style: const TextStyle(fontSize: 20)),
+                          title: Text(cat.name),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: kDangerColor),
+                            onPressed: () async {
+                              final rawCats = await LocalGuestStorage.getCategories();
+                              rawCats.removeWhere((c) => c['id'] == cat.id);
+                              await LocalGuestStorage.saveCategories(rawCats);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              _gestionarCategorias();
+                            },
+                          ),
+                        );
+                      }
+                    );
+                  }
+                );
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) return const Text('No hay categorías personalizadas', style: TextStyle(color: kTextMuted));
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final cat = CustomCategory.fromFirestore(docs[index]);
+                  return ListTile(
+                    leading: Text(cat.emoji, style: const TextStyle(fontSize: 20)),
+                    title: Text(cat.name),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: kDangerColor),
+                      onPressed: () {
+                         FirebaseFirestore.instance.collection('couples').doc(widget.coupleId).collection('categories').doc(cat.id).delete();
+                      }
+                    ),
+                  );
+                }
+              );
+            }
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar', style: TextStyle(color: kTextDark))),
+        ]
+      )
+    );
+  }
+
   void _crearNuevaCategoria() {
     final nameCtrl = TextEditingController();
     final emojiCtrl = TextEditingController(text: '🏷️');
+    final hexCtrl = TextEditingController();
     int selectedColor = 0xFF00897B;
     String selectedType = 'expense';
 
     final List<int> colorOptions = [
-      0xFFE54B2A,
+      0xFF0D9488,
       0xFF00897B,
-      0xFFFF6D00,
       0xFF2563EB,
+      0xFF6366F1,
       0xFF9333EA,
       0xFFDB2777,
-      0xFFD97706,
       0xFF059669,
+      0xFF475569,
     ];
 
     showDialog(
@@ -3136,11 +3259,39 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: emojiCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Emoji de la categoría (ej: 🐶, 🎬)',
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: TextField(
+                        controller: emojiCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Emoji (ej: 🐶)',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: hexCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Color Hex (Opcional)',
+                          hintText: 'ej: FF5733',
+                          prefixText: '#',
+                        ),
+                        maxLength: 6,
+                        onChanged: (val) {
+                          if (val.length == 6) {
+                            final parsed = int.tryParse(val, radix: 16);
+                            if (parsed != null) {
+                              setDialogState(() => selectedColor = 0xFF000000 | parsed);
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -3176,7 +3327,7 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Color identificador:',
+                    'Color identificador (Predefinidos):',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -3191,7 +3342,10 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
                   children: colorOptions.map((c) {
                     final isSel = selectedColor == c;
                     return GestureDetector(
-                      onTap: () => setDialogState(() => selectedColor = c),
+                      onTap: () {
+                        hexCtrl.clear();
+                        setDialogState(() => selectedColor = c);
+                      },
                       child: Container(
                         width: 32,
                         height: 32,
@@ -3248,6 +3402,7 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
                 if (ctx.mounted) Navigator.pop(ctx);
                 nameCtrl.dispose();
                 emojiCtrl.dispose();
+                hexCtrl.dispose();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimaryColor,
@@ -3402,6 +3557,107 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
+                  color: kDangerColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: kDangerColor,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Gestionar Categorías',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Elimina categorías que ya no necesites',
+                style: TextStyle(fontSize: 12, color: kTextMuted),
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: kTextMuted,
+              ),
+              onTap: _gestionarCategorias,
+            ),
+            const Divider(color: kBorderColor, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kDangerColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: kDangerColor,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Gestionar Categorías',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Elimina categorías que ya no necesites',
+                style: TextStyle(fontSize: 12, color: kTextMuted),
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: kTextMuted,
+              ),
+              onTap: _gestionarCategorias,
+            ),
+            const Divider(color: kBorderColor, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  color: kPrimaryColor,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Histórico de Ciclos',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Revisa los balances y periodos anteriores guardados',
+                style: TextStyle(fontSize: 12, color: kTextMuted),
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: kTextMuted,
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HistoryScreen(
+                      coupleId: widget.coupleId,
+                      mode: widget.mode,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Divider(color: kBorderColor, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
                   color: kPrimaryColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -3412,7 +3668,7 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
                 ),
               ),
               title: const Text(
-                'Archivar Periodo a Histórico',
+                'Archivar Periodo y Reiniciar Ciclo',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               subtitle: const Text(
@@ -3425,6 +3681,43 @@ class _NidoOptionsMenuState extends State<_NidoOptionsMenu> {
                 color: kTextMuted,
               ),
               onTap: _cerrarPeriodoYArchivar,
+            ),
+            const Divider(color: kBorderColor, height: 1),
+
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: nidoThemeMode,
+              builder: (context, mode, _) {
+                final isDark = mode == ThemeMode.dark;
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: kAccentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                      color: kAccentColor,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    isDark ? 'Modo Oscuro' : 'Modo Claro',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Alterna entre tema claro y oscuro',
+                    style: TextStyle(fontSize: 12, color: kTextMuted),
+                  ),
+                  trailing: Switch(
+                    value: isDark,
+                    activeThumbColor: kAccentColor,
+                    onChanged: (val) {
+                      nidoThemeMode.value = val ? ThemeMode.dark : ThemeMode.light;
+                    },
+                  ),
+                );
+              },
             ),
             const Divider(color: kBorderColor, height: 1),
 
@@ -3516,10 +3809,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final rawExpenses = await LocalGuestStorage.getExpenses();
     final budget = await LocalGuestStorage.getBudget();
     final rawCats = await LocalGuestStorage.getCategories();
+    final cycleStart = await LocalGuestStorage.getCycleStartDate();
 
     if (mounted) {
       setState(() {
-        _guestExpenses = rawExpenses.map((e) => Expense.fromJson(e)).toList();
+        final parsed = rawExpenses.map((e) => Expense.fromJson(e)).toList();
+        _guestExpenses = parsed
+            .where((e) => !e.date.isBefore(cycleStart))
+            .toList();
         _guestExpenses.sort((a, b) => b.date.compareTo(a.date));
         _guestBudget = budget;
         _guestCategories = rawCats
@@ -3529,7 +3826,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _openAddExpenseSheet({Expense? expenseToEdit}) {
+  void _openAddExpenseSheet({
+    Expense? expenseToEdit,
+    List<CustomCategory>? customCategories,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -3540,19 +3840,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mode: widget.mode,
         expenseToEdit: expenseToEdit,
         onGuestRefresh: _loadGuestData,
+        customCategories: customCategories ?? _guestCategories,
       ),
     );
   }
 
-  Stream<List<Expense>> _streamExpenses() {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-
+  Stream<List<Expense>> _streamExpenses(DateTime cycleStartDate) {
     return FirebaseFirestore.instance
         .collection('couples')
         .doc(widget.coupleId)
         .collection('expenses')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
+        .where(
+          'date',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(cycleStartDate),
+        )
         .snapshots()
         .map((snapshot) {
           final items = snapshot.docs
@@ -3675,8 +3976,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           coupleData?['members'] as List? ?? [],
         );
 
+        final cycleStartTimestamp =
+            coupleData?['cycle_start_date'] as Timestamp?;
+        final cycleStartDate =
+            cycleStartTimestamp?.toDate() ??
+            DateTime(DateTime.now().year, DateTime.now().month, 1);
+
         return StreamBuilder<List<Expense>>(
-          stream: _streamExpenses(),
+          stream: _streamExpenses(cycleStartDate),
           builder: (context, expensesSnapshot) {
             final allTransactions = expensesSnapshot.data ?? [];
 
@@ -3832,60 +4139,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const Icon(
                             Icons.account_balance_wallet,
                             color: Colors.white,
-                            size: 18,
+                            size: 16,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           const Text(
                             'Disponible Real',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () =>
+                                _showEditBudgetDialog(context, budgetLimit),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Meta: ${formatCurrency(budgetLimit)}',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  const Icon(
+                                    Icons.edit_outlined,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           const Spacer(),
                           if (!_disponibleExpanded)
                             Padding(
-                              padding: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.only(right: 6),
                               child: _SmoothCurrencyText(
                                 value: disponibleReal,
                                 style: const TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          if (_disponibleExpanded)
-                            GestureDetector(
-                              onTap: () =>
-                                  _showEditBudgetDialog(context, budgetLimit),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'Meta: ${formatCurrency(budgetLimit)}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.edit_outlined,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
@@ -3894,7 +4202,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ? Icons.keyboard_arrow_up_rounded
                                 : Icons.keyboard_arrow_down_rounded,
                             color: Colors.white,
-                            size: 22,
+                            size: 20,
                           ),
                         ],
                       ),
@@ -3908,14 +4216,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           : CrossFadeState.showSecond,
                       duration: const Duration(milliseconds: 220),
                       firstChild: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: _SmoothCurrencyText(
                               value: disponibleReal,
                               style: TextStyle(
-                                fontSize: 38,
+                                fontSize: 36,
                                 fontWeight: FontWeight.w900,
                                 color: disponibleReal < 0
                                     ? const Color(0xFFFF8A80)
@@ -4078,7 +4387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Text(
                               'Movimientos${filtered.isNotEmpty ? ' (${filtered.length})' : ''}',
                               style: const TextStyle(
-                                fontSize: 17,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: kTextDark,
                               ),
@@ -4096,7 +4405,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const Spacer(),
                       ElevatedButton.icon(
-                        onPressed: () => _openAddExpenseSheet(),
+                        onPressed: () =>
+                            _openAddExpenseSheet(customCategories: customCats),
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: const Text(
                           'Añadir',
@@ -4124,51 +4434,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   if (_movimientosExpanded) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: kBackgroundColor,
+                        color: kSurfaceColor,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: kBorderColor.withValues(alpha: 0.6),
-                        ),
+                        border: Border.all(color: kBorderColor, width: 1.0),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
+                          Row(
                             children: [
-                              _buildFilterChip('Todos', 'all'),
-                              _buildFilterChip('➖ Gastos', 'expense'),
-                              _buildFilterChip('➕ Ingresos', 'income'),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          const Divider(height: 1, color: kBorderColor),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Colección de Categorías',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: kTextMuted,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              _buildCategoryChip('Todas las cats', 'all'),
-                              ...customCats.map(
-                                (c) => _buildCategoryChip(
-                                  '${c.emoji} ${c.name}',
-                                  c.name,
-                                ),
+                              _buildInlineTypeOption(
+                                'Todos',
+                                'all',
+                                Icons.format_list_bulleted_rounded,
+                                kTextMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              _buildInlineTypeOption(
+                                'Gastos',
+                                'expense',
+                                Icons.remove_circle_outline,
+                                kExpenseColor,
+                              ),
+                              const SizedBox(width: 6),
+                              _buildInlineTypeOption(
+                                'Ingresos',
+                                'income',
+                                Icons.add_circle_outline,
+                                kIncomeColor,
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 8),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => _openCategoryFilterSheet(customCats),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _selectedCategoryFilter != 'all'
+                                    ? kPrimaryColor.withValues(alpha: 0.10)
+                                    : kBackgroundColor,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _selectedCategoryFilter != 'all'
+                                      ? kPrimaryColor
+                                      : kBorderColor,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.category_outlined,
+                                    size: 16,
+                                    color: _selectedCategoryFilter != 'all'
+                                        ? kPrimaryColor
+                                        : kTextMuted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _selectedCategoryFilter == 'all'
+                                          ? 'Filtrar por Categoría: (Todas)'
+                                          : 'Categoría: $_selectedCategoryFilter',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: _selectedCategoryFilter != 'all'
+                                            ? kPrimaryColor
+                                            : kTextDark,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_selectedCategoryFilter != 'all')
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(
+                                          () => _selectedCategoryFilter = 'all',
+                                        );
+                                        HapticFeedback.selectionClick();
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                          color: kDangerColor,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const Icon(
+                                      Icons.arrow_drop_down_rounded,
+                                      color: kTextMuted,
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -4204,9 +4573,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             coupleId: widget.coupleId,
                             currentUserName: widget.userName,
                             mode: widget.mode,
-                            onEdit: () =>
-                                _openAddExpenseSheet(expenseToEdit: ex),
+                            onEdit: () => _openAddExpenseSheet(
+                              expenseToEdit: ex,
+                              customCategories: customCats,
+                            ),
                             onGuestRefresh: _loadGuestData,
+                            customCategories: customCats,
                           ),
                         );
                       }, childCount: filtered.length),
@@ -4219,72 +4591,311 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
+  Widget _buildInlineTypeOption(
+    String label,
+    String value,
+    IconData icon,
+    Color iconColor,
+  ) {
     final isSelected = _filterType == value;
-    final isExpense = value == 'expense';
-    final isIncome = value == 'income';
-
-    Color activeColor = kPrimaryColor;
-    if (isExpense) activeColor = kExpenseColor;
-    if (isIncome) activeColor = kIncomeColor;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() => _filterType = value);
-        HapticFeedback.selectionClick();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor : kSurfaceColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? activeColor : kBorderColor),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : kTextMuted,
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          setState(() {
+            _filterType = value;
+            _selectedCategoryFilter = 'all';
+          });
+          HapticFeedback.selectionClick();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? kPrimaryColor.withValues(alpha: 0.10)
+                : kBackgroundColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? kPrimaryColor : kBorderColor,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: iconColor),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? kPrimaryColor : kTextDark,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCategoryChip(String label, String value) {
-    final isSelected = _selectedCategoryFilter == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedCategoryFilter = value);
-        HapticFeedback.selectionClick();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? kAccentColor : kSurfaceColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isSelected ? kAccentColor : kBorderColor),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: kAccentColor.withValues(alpha: 0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+  void _openCategoryFilterSheet(List<CustomCategory> customCats) {
+    final defaultExpenseCats = _AddExpenseBottomSheetState
+        ._defaultExpenseCategories
+        .map((c) => c['name'] as String)
+        .toList();
+    final defaultIncomeCats = _AddExpenseBottomSheetState
+        ._defaultIncomeCategories
+        .map((c) => c['name'] as String)
+        .toList();
+
+    final customExpenseCats = customCats
+        .where((c) => c.type == 'expense')
+        .map((c) => c.name)
+        .toList();
+    final customIncomeCats = customCats
+        .where((c) => c.type == 'income')
+        .map((c) => c.name)
+        .toList();
+
+    final allExpenses = [...defaultExpenseCats, ...customExpenseCats];
+    final allIncomes = [...defaultIncomeCats, ...customIncomeCats];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: kSurfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setFilterState) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.category_outlined,
+                      color: kPrimaryColor,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Filtrar por Categoría',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: kTextDark,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (_selectedCategoryFilter != 'all')
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _selectedCategoryFilter = 'all');
+                          setFilterState(() {});
+                          HapticFeedback.selectionClick();
+                        },
+                        child: const Text(
+                          'Ver todas',
+                          style: TextStyle(
+                            color: kDangerColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('✨ Todas las categorías'),
+                          selected: _selectedCategoryFilter == 'all',
+                          selectedColor: kPrimaryColor.withValues(alpha: 0.15),
+                          backgroundColor: kBackgroundColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          side: BorderSide(
+                            color: _selectedCategoryFilter == 'all'
+                                ? kPrimaryColor
+                                : kBorderColor,
+                            width: _selectedCategoryFilter == 'all' ? 1.5 : 1.0,
+                          ),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: _selectedCategoryFilter == 'all'
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: _selectedCategoryFilter == 'all'
+                                ? kPrimaryColor
+                                : kTextDark,
+                          ),
+                          onSelected: (_) {
+                            setState(() => _selectedCategoryFilter = 'all');
+                            setFilterState(() {});
+                            HapticFeedback.selectionClick();
+                          },
+                        ),
+                        const SizedBox(height: 14),
+
+                        if (_filterType == 'all' ||
+                            _filterType == 'expense') ...[
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.remove_circle_outline,
+                                size: 14,
+                                color: kExpenseColor,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Categorías de Gastos',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: kExpenseColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: allExpenses.map((cat) {
+                              final isSel = _selectedCategoryFilter == cat;
+                              return ChoiceChip(
+                                label: Text(cat),
+                                selected: isSel,
+                                selectedColor: kExpenseColor.withValues(
+                                  alpha: 0.15,
+                                ),
+                                backgroundColor: kBackgroundColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                side: BorderSide(
+                                  color: isSel ? kExpenseColor : kBorderColor,
+                                  width: isSel ? 1.5 : 1.0,
+                                ),
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSel
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSel ? kExpenseColor : kTextDark,
+                                ),
+                                onSelected: (_) {
+                                  setState(() => _selectedCategoryFilter = cat);
+                                  setFilterState(() {});
+                                  HapticFeedback.selectionClick();
+                                },
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (_filterType == 'all' ||
+                            _filterType == 'income') ...[
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.add_circle_outline,
+                                size: 14,
+                                color: kIncomeColor,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Categorías de Ingresos',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: kIncomeColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: allIncomes.map((cat) {
+                              final isSel = _selectedCategoryFilter == cat;
+                              return ChoiceChip(
+                                label: Text(cat),
+                                selected: isSel,
+                                selectedColor: kIncomeColor.withValues(
+                                  alpha: 0.15,
+                                ),
+                                backgroundColor: kBackgroundColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                side: BorderSide(
+                                  color: isSel ? kIncomeColor : kBorderColor,
+                                  width: isSel ? 1.5 : 1.0,
+                                ),
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSel
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSel ? kIncomeColor : kTextDark,
+                                ),
+                                onSelected: (_) {
+                                  setState(() => _selectedCategoryFilter = cat);
+                                  setFilterState(() {});
+                                  HapticFeedback.selectionClick();
+                                },
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ],
+                    ),
                   ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : kTextDark,
-          ),
-        ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      'Aplicar Filtro',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -4743,6 +5354,7 @@ class _ExpenseCard extends StatelessWidget {
   final NidoUsageMode mode;
   final VoidCallback onEdit;
   final VoidCallback? onGuestRefresh;
+  final List<CustomCategory> customCategories;
 
   const _ExpenseCard({
     required this.expense,
@@ -4751,9 +5363,15 @@ class _ExpenseCard extends StatelessWidget {
     required this.mode,
     required this.onEdit,
     this.onGuestRefresh,
+    this.customCategories = const [],
   });
 
   Color _categoryColor(String cat, bool isIncome) {
+    final custom = customCategories.where((c) => c.name == cat).toList();
+    if (custom.isNotEmpty) {
+      return Color(custom.first.colorHex);
+    }
+    
     if (isIncome) return kIncomeColor;
     switch (cat) {
       case 'Citas & Salidas':
@@ -4781,6 +5399,11 @@ class _ExpenseCard extends StatelessWidget {
   }
 
   String _categoryEmoji(String cat) {
+    final custom = customCategories.where((c) => c.name == cat).toList();
+    if (custom.isNotEmpty) {
+      return custom.first.emoji;
+    }
+
     switch (cat) {
       case 'Sueldo / Nómina':
         return '💵';
@@ -6595,6 +7218,7 @@ class AddExpenseBottomSheet extends StatefulWidget {
   final NidoUsageMode mode;
   final Expense? expenseToEdit;
   final VoidCallback? onGuestRefresh;
+  final List<CustomCategory>? customCategories;
 
   const AddExpenseBottomSheet({
     super.key,
@@ -6603,6 +7227,7 @@ class AddExpenseBottomSheet extends StatefulWidget {
     required this.mode,
     this.expenseToEdit,
     this.onGuestRefresh,
+    this.customCategories,
   });
 
   @override
@@ -6650,6 +7275,34 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
       _transactionType = ex.type;
       _selectedCategory = ex.category;
     }
+  }
+
+  List<Map<String, dynamic>> _buildCategoryOptions(bool isIncome) {
+    final defaults = isIncome
+        ? _defaultIncomeCategories
+        : _defaultExpenseCategories;
+    final custom = (widget.customCategories ?? [])
+        .where((category) => category.type == (isIncome ? 'income' : 'expense'))
+        .map(
+          (category) => {
+            'name': category.name,
+            'emoji': category.emoji,
+            'icon': Icons.category_outlined,
+          },
+        )
+        .toList();
+
+    final combined = [...defaults, ...custom];
+    combined.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
+    return combined;
+  }
+
+  String _defaultCategoryName(bool isIncome) {
+    final categories = _buildCategoryOptions(isIncome);
+    if (categories.isEmpty) {
+      return isIncome ? 'Sueldo / Nómina' : 'Citas & Salidas';
+    }
+    return categories.first['name'] as String;
   }
 
   @override
@@ -6753,9 +7406,7 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
   Widget build(BuildContext context) {
     final keyboardPadding = MediaQuery.of(context).viewInsets.bottom;
     final isIncome = _transactionType == 'income';
-    final categories = isIncome
-        ? _defaultIncomeCategories
-        : _defaultExpenseCategories;
+    final categories = _buildCategoryOptions(isIncome);
 
     return Container(
       decoration: const BoxDecoration(
@@ -6800,7 +7451,7 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
                       onTap: () {
                         setState(() {
                           _transactionType = 'expense';
-                          _selectedCategory = 'Citas & Salidas';
+                          _selectedCategory = _defaultCategoryName(false);
                         });
                         HapticFeedback.selectionClick();
                       },
@@ -6827,7 +7478,7 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
                       onTap: () {
                         setState(() {
                           _transactionType = 'income';
-                          _selectedCategory = 'Sueldo / Nómina';
+                          _selectedCategory = _defaultCategoryName(true);
                         });
                         HapticFeedback.selectionClick();
                       },
@@ -6940,11 +7591,16 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
                           color: isSelected ? Colors.white : kTextDark,
                         ),
                       ),
-                      avatar: Icon(
-                        cat['icon'] as IconData,
-                        size: 14,
-                        color: isSelected ? Colors.white : kTextMuted,
-                      ),
+                      avatar: cat.containsKey('emoji')
+                          ? Text(
+                              cat['emoji'] as String,
+                              style: const TextStyle(fontSize: 14),
+                            )
+                          : Icon(
+                              cat['icon'] as IconData,
+                              size: 14,
+                              color: isSelected ? Colors.white : kTextMuted,
+                            ),
                       selected: isSelected,
                       onSelected: (_) {
                         setState(
