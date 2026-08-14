@@ -271,11 +271,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    final disponibleReal =
-        (totalIngresos > 0 ? totalIngresos : budgetLimit) - totalGastos;
-    final porcentajeGastado = totalIngresos > 0
-        ? (totalGastos / totalIngresos).clamp(0.0, 1.0)
-        : (totalGastos / budgetLimit).clamp(0.0, 1.0);
+    final disponibleBase = budgetLimit + totalIngresos;
+    final disponibleReal = disponibleBase - totalGastos;
+    final porcentajeGastado = disponibleBase > 0
+        ? (totalGastos / disponibleBase).clamp(0.0, 1.0)
+        : 0.0;
 
     final filtered = allTransactions.where((t) {
       if (_filterType == 'income' && !t.isIncome) return false;

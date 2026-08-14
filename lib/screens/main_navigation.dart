@@ -102,7 +102,7 @@ class _MainNavigationState extends State<MainNavigation> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kSurfaceColor,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -384,35 +384,67 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: kSurfaceColor,
+        backgroundColor: context.nidoSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Gestionar Categorías', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text(
+          'Gestionar Categorías',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: context.nidoTextDark,
+          ),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: StreamBuilder<QuerySnapshot>(
-            stream: widget.mode == NidoUsageMode.guest 
-                ? null 
-                : FirebaseFirestore.instance.collection('couples').doc(widget.coupleId).collection('categories').snapshots(),
+            stream: widget.mode == NidoUsageMode.guest
+                ? null
+                : FirebaseFirestore.instance
+                    .collection('couples')
+                    .doc(widget.coupleId)
+                    .collection('categories')
+                    .snapshots(),
             builder: (context, snapshot) {
               if (widget.mode == NidoUsageMode.guest) {
                 return FutureBuilder<List<Map<String, dynamic>>>(
                   future: LocalGuestStorage.getCategories(),
                   builder: (ctx, snap) {
-                    if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
-                    final cats = snap.data!.map((e) => CustomCategory.fromJson(e)).toList();
-                    if (cats.isEmpty) return const Text('No hay categorías personalizadas', style: TextStyle(color: kTextMuted));
+                    if (!snap.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: kPrimaryColor),
+                      );
+                    }
+                    final cats = snap.data!
+                        .map((e) => CustomCategory.fromJson(e))
+                        .toList();
+                    if (cats.isEmpty) {
+                      return Text(
+                        'No hay categorías personalizadas',
+                        style: TextStyle(color: context.nidoTextMuted),
+                      );
+                    }
                     return ListView.builder(
                       shrinkWrap: true,
                       itemCount: cats.length,
                       itemBuilder: (context, index) {
                         final cat = cats[index];
                         return ListTile(
-                          leading: Text(cat.emoji, style: const TextStyle(fontSize: 20)),
-                          title: Text(cat.name),
+                          leading: Text(
+                            cat.emoji,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          title: Text(
+                            cat.name,
+                            style: TextStyle(color: context.nidoTextDark),
+                          ),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: kDangerColor),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: kDangerColor,
+                            ),
                             onPressed: () async {
-                              final rawCats = await LocalGuestStorage.getCategories();
+                              final rawCats =
+                                  await LocalGuestStorage.getCategories();
                               rawCats.removeWhere((c) => c['id'] == cat.id);
                               await LocalGuestStorage.saveCategories(rawCats);
                               if (ctx.mounted) Navigator.pop(ctx);
@@ -420,242 +452,448 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                             },
                           ),
                         );
-                      }
+                      },
                     );
-                  }
+                  },
                 );
               }
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: kPrimaryColor),
+                );
+              }
               final docs = snapshot.data?.docs ?? [];
-              if (docs.isEmpty) return const Text('No hay categorías personalizadas', style: TextStyle(color: kTextMuted));
+              if (docs.isEmpty) {
+                return Text(
+                  'No hay categorías personalizadas',
+                  style: TextStyle(color: context.nidoTextMuted),
+                );
+              }
               return ListView.builder(
                 shrinkWrap: true,
                 itemCount: docs.length,
                 itemBuilder: (context, index) {
                   final cat = CustomCategory.fromFirestore(docs[index]);
                   return ListTile(
-                    leading: Text(cat.emoji, style: const TextStyle(fontSize: 20)),
-                    title: Text(cat.name),
+                    leading: Text(
+                      cat.emoji,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    title: Text(
+                      cat.name,
+                      style: TextStyle(color: context.nidoTextDark),
+                    ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: kDangerColor),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: kDangerColor,
+                      ),
                       onPressed: () {
-                         FirebaseFirestore.instance.collection('couples').doc(widget.coupleId).collection('categories').doc(cat.id).delete();
-                      }
+                        FirebaseFirestore.instance
+                            .collection('couples')
+                            .doc(widget.coupleId)
+                            .collection('categories')
+                            .doc(cat.id)
+                            .delete();
+                      },
                     ),
                   );
-                }
+                },
               );
-            }
+            },
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar', style: TextStyle(color: kTextDark))),
-        ]
-      )
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cerrar',
+              style: TextStyle(color: context.nidoTextDark),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   void _crearNuevaCategoria() {
     final nameCtrl = TextEditingController();
     final emojiCtrl = TextEditingController(text: '🏷️');
-    final hexCtrl = TextEditingController();
-    int selectedColor = 0xFF00897B;
+    int red = 13;
+    int green = 148;
+    int blue = 136;
+    double alpha = 1.0;
     String selectedType = 'expense';
 
-    final List<int> colorOptions = [
-      0xFF0D9488,
-      0xFF00897B,
-      0xFF2563EB,
-      0xFF6366F1,
-      0xFF9333EA,
-      0xFFDB2777,
-      0xFF059669,
-      0xFF475569,
+    final List<Color> presetColors = [
+      const Color(0xFF0D9488),
+      const Color(0xFF00897B),
+      const Color(0xFF2563EB),
+      const Color(0xFF6366F1),
+      const Color(0xFF9333EA),
+      const Color(0xFFDB2777),
+      const Color(0xFF059669),
+      const Color(0xFFE53935),
+      const Color(0xFFF59E0B),
+      const Color(0xFF475569),
     ];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          backgroundColor: kSurfaceColor,
-          title: const Text(
-            'Nueva Categoría Personalizada',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre (ej: Mascotas, Cine)',
+        builder: (ctx, setDialogState) {
+          final currentColor = Color.fromARGB(
+            (alpha * 255).round(),
+            red,
+            green,
+            blue,
+          );
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            backgroundColor: context.nidoSurface,
+            title: Text(
+              'Nueva Categoría Personalizada',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: context.nidoTextDark,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    style: TextStyle(color: context.nidoTextDark),
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Nombre (ej: Mascotas, Cine)',
+                      labelStyle: TextStyle(color: context.nidoTextMuted),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: TextField(
-                        controller: emojiCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Emoji (ej: 🐶)',
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emojiCtrl,
+                    style: TextStyle(color: context.nidoTextDark),
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Emoji (ej: 🐶)',
+                      labelStyle: TextStyle(color: context.nidoTextMuted),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('➖ Gasto'),
+                        selected: selectedType == 'expense',
+                        selectedColor: kExpenseColor,
+                        labelStyle: TextStyle(
+                          color: selectedType == 'expense'
+                              ? Colors.white
+                              : context.nidoTextDark,
                         ),
+                        onSelected: (_) =>
+                            setDialogState(() => selectedType = 'expense'),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: hexCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Color Hex (Opcional)',
-                          hintText: 'ej: FF5733',
-                          prefixText: '#',
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('➕ Ingreso'),
+                        selected: selectedType == 'income',
+                        selectedColor: kIncomeColor,
+                        labelStyle: TextStyle(
+                          color: selectedType == 'income'
+                              ? Colors.white
+                              : context.nidoTextDark,
                         ),
-                        maxLength: 6,
-                        onChanged: (val) {
-                          if (val.length == 6) {
-                            final parsed = int.tryParse(val, radix: 16);
-                            if (parsed != null) {
-                              setDialogState(() => selectedColor = 0xFF000000 | parsed);
-                            }
-                          }
-                        },
+                        onSelected: (_) =>
+                            setDialogState(() => selectedType = 'income'),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // VISTA PREVIA DEL COLOR Y BADGE
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: context.nidoBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.nidoBorder),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    ChoiceChip(
-                      label: const Text('➖ Gasto'),
-                      selected: selectedType == 'expense',
-                      selectedColor: kExpenseColor,
-                      labelStyle: TextStyle(
-                        color: selectedType == 'expense'
-                            ? Colors.white
-                            : kTextDark,
-                      ),
-                      onSelected: (_) =>
-                          setDialogState(() => selectedType = 'expense'),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: currentColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: context.nidoBorder,
+                              width: 1,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            emojiCtrl.text.trim().isEmpty
+                                ? '🏷️'
+                                : emojiCtrl.text.trim(),
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                nameCtrl.text.trim().isEmpty
+                                    ? 'Nombre Categoría'
+                                    : nameCtrl.text.trim(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: context.nidoTextDark,
+                                ),
+                              ),
+                              Text(
+                                'HEX: #${currentColor.toARGB32().toRadixString(16).toUpperCase().padLeft(8, '0')}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: context.nidoTextMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('➕ Ingreso'),
-                      selected: selectedType == 'income',
-                      selectedColor: kIncomeColor,
-                      labelStyle: TextStyle(
-                        color: selectedType == 'income'
-                            ? Colors.white
-                            : kTextDark,
-                      ),
-                      onSelected: (_) =>
-                          setDialogState(() => selectedType = 'income'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Color identificador (Predefinidos):',
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    'Selector de Color (RGBA libre):',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: kTextMuted,
+                      color: context.nidoTextDark,
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: colorOptions.map((c) {
-                    final isSel = selectedColor == c;
-                    return GestureDetector(
-                      onTap: () {
-                        hexCtrl.clear();
-                        setDialogState(() => selectedColor = c);
-                      },
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Color(c),
-                          shape: BoxShape.circle,
-                          border: isSel
-                              ? Border.all(color: kTextDark, width: 3)
-                              : null,
+                  const SizedBox(height: 8),
+
+                  // Slider Rojo
+                  Row(
+                    children: [
+                      const Text('🔴', style: TextStyle(fontSize: 12)),
+                      Expanded(
+                        child: Slider(
+                          value: red.toDouble(),
+                          min: 0,
+                          max: 255,
+                          activeColor: Colors.red,
+                          onChanged: (val) =>
+                              setDialogState(() => red = val.round()),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameCtrl.text.trim();
-                final emoji = emojiCtrl.text.trim();
-                if (name.isNotEmpty) {
-                  if (widget.mode == NidoUsageMode.guest) {
-                    final cats = await LocalGuestStorage.getCategories();
-                    cats.add(
-                      CustomCategory(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        name: name,
-                        emoji: emoji.isEmpty ? '🏷️' : emoji,
-                        colorHex: selectedColor,
-                        type: selectedType,
-                      ).toJson(),
-                    );
-                    await LocalGuestStorage.saveCategories(cats);
-                  } else {
-                    await FirebaseFirestore.instance
-                        .collection('couples')
-                        .doc(widget.coupleId)
-                        .collection('categories')
-                        .add({
-                          'name': name,
-                          'emoji': emoji.isEmpty ? '🏷️' : emoji,
-                          'colorHex': selectedColor,
-                          'type': selectedType,
-                          'createdAt': FieldValue.serverTimestamp(),
-                        });
-                  }
-                }
-                if (ctx.mounted) Navigator.pop(ctx);
-                nameCtrl.dispose();
-                emojiCtrl.dispose();
-                hexCtrl.dispose();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryColor,
-                foregroundColor: Colors.white,
+                      Text(
+                        '$red',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.nidoTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Slider Verde
+                  Row(
+                    children: [
+                      const Text('🟢', style: TextStyle(fontSize: 12)),
+                      Expanded(
+                        child: Slider(
+                          value: green.toDouble(),
+                          min: 0,
+                          max: 255,
+                          activeColor: Colors.green,
+                          onChanged: (val) =>
+                              setDialogState(() => green = val.round()),
+                        ),
+                      ),
+                      Text(
+                        '$green',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.nidoTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Slider Azul
+                  Row(
+                    children: [
+                      const Text('🔵', style: TextStyle(fontSize: 12)),
+                      Expanded(
+                        child: Slider(
+                          value: blue.toDouble(),
+                          min: 0,
+                          max: 255,
+                          activeColor: Colors.blue,
+                          onChanged: (val) =>
+                              setDialogState(() => blue = val.round()),
+                        ),
+                      ),
+                      Text(
+                        '$blue',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.nidoTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Slider Transparencia / Alpha
+                  Row(
+                    children: [
+                      const Text('💧', style: TextStyle(fontSize: 12)),
+                      Expanded(
+                        child: Slider(
+                          value: alpha,
+                          min: 0.1,
+                          max: 1.0,
+                          activeColor: kPrimaryColor,
+                          onChanged: (val) => setDialogState(() => alpha = val),
+                        ),
+                      ),
+                      Text(
+                        '${(alpha * 100).round()}%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.nidoTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+                  Text(
+                    'Colores rápidos:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: context.nidoTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: presetColors.map((c) {
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            red = c.r.toInt();
+                            green = c.g.toInt();
+                            blue = c.b.toInt();
+                            alpha = 1.0;
+                          });
+                        },
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: c,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: context.nidoBorder,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-              child: const Text('Guardar'),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancelar',
+                  style: TextStyle(color: context.nidoTextMuted),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  final emoji = emojiCtrl.text.trim();
+                  if (name.isNotEmpty) {
+                    final colorValue = currentColor.toARGB32();
+                    if (widget.mode == NidoUsageMode.guest) {
+                      final cats = await LocalGuestStorage.getCategories();
+                      cats.add(
+                        CustomCategory(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: name,
+                          emoji: emoji.isEmpty ? '🏷️' : emoji,
+                          colorHex: colorValue,
+                          type: selectedType,
+                        ).toJson(),
+                      );
+                      await LocalGuestStorage.saveCategories(cats);
+                    } else {
+                      await FirebaseFirestore.instance
+                          .collection('couples')
+                          .doc(widget.coupleId)
+                          .collection('categories')
+                          .add({
+                            'name': name,
+                            'emoji': emoji.isEmpty ? '🏷️' : emoji,
+                            'colorHex': colorValue,
+                            'type': selectedType,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+                    }
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  nameCtrl.dispose();
+                  emojiCtrl.dispose();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryColor,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final surface = context.nidoSurface;
+    final bg = context.nidoBg;
+    final border = context.nidoBorder;
+    final textDark = context.nidoTextDark;
+    final textMuted = context.nidoTextMuted;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
@@ -675,17 +913,17 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                   size: 24,
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Menú & Ajustes ⚙️',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: kTextDark,
+                    color: textDark,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: Icon(Icons.close, size: 20, color: textMuted),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -695,35 +933,35 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: kBackgroundColor,
+                color: bg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kBorderColor),
+                border: Border.all(color: border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.calendar_month_outlined,
                         size: 18,
                         color: kPrimaryColor,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         'Ciclo de Presupuesto',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: kTextDark,
+                          color: textDark,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Elige cuándo se reinician los montos o comienza la quincena:',
-                    style: TextStyle(fontSize: 12, color: kTextMuted),
+                    style: TextStyle(fontSize: 12, color: textMuted),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -735,7 +973,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                         labelStyle: TextStyle(
                           color: _resetMode == 'monthly'
                               ? Colors.white
-                              : kTextDark,
+                              : textDark,
                           fontSize: 12,
                         ),
                         onSelected: (_) =>
@@ -749,7 +987,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                         labelStyle: TextStyle(
                           color: _resetMode == 'biweekly'
                               ? Colors.white
-                              : kTextDark,
+                              : textDark,
                           fontSize: 12,
                         ),
                         onSelected: (_) => _updateResetSettings(1, 'biweekly'),
@@ -774,13 +1012,17 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                   size: 20,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Crear Categoría Personalizada',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textDark,
+                ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Añade un icono y color a tus categorías',
-                style: TextStyle(fontSize: 12, color: kTextMuted),
+                style: TextStyle(fontSize: 12, color: textMuted),
               ),
               trailing: const Icon(
                 Icons.add_circle_outline_rounded,
@@ -788,7 +1030,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
               ),
               onTap: _crearNuevaCategoria,
             ),
-            const Divider(color: kBorderColor, height: 1),
+            Divider(color: border, height: 1),
 
             ListTile(
               leading: Container(
@@ -803,22 +1045,26 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                   size: 20,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Gestionar Categorías',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textDark,
+                ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Edita o elimina categorías agregadas por ti',
-                style: TextStyle(fontSize: 12, color: kTextMuted),
+                style: TextStyle(fontSize: 12, color: textMuted),
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
-                color: kTextMuted,
+                color: textMuted,
               ),
               onTap: _gestionarCategorias,
             ),
-            const Divider(color: kBorderColor, height: 1),
+            Divider(color: border, height: 1),
 
             ListTile(
               leading: Container(
@@ -833,18 +1079,22 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                   size: 20,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Histórico de Periodos',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textDark,
+                ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Ver resúmenes archivados de meses anteriores',
-                style: TextStyle(fontSize: 12, color: kTextMuted),
+                style: TextStyle(fontSize: 12, color: textMuted),
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
-                color: kTextMuted,
+                color: textMuted,
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -859,7 +1109,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                 );
               },
             ),
-            const Divider(color: kBorderColor, height: 1),
+            Divider(color: border, height: 1),
 
             ListTile(
               leading: Container(
@@ -874,13 +1124,17 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                   size: 20,
                 ),
               ),
-              title: const Text(
+              title: Text(
                 'Archivar Periodo Actual',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textDark,
+                ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Guarda el resumen y reinicia el saldo para un nuevo ciclo',
-                style: TextStyle(fontSize: 12, color: kTextMuted),
+                style: TextStyle(fontSize: 12, color: textMuted),
               ),
               trailing: const Icon(
                 Icons.archive_outlined,
@@ -888,7 +1142,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
               ),
               onTap: _cerrarPeriodoYArchivar,
             ),
-            const Divider(color: kBorderColor, height: 1),
+            Divider(color: border, height: 1),
 
             ValueListenableBuilder<ThemeMode>(
               valueListenable: nidoThemeMode,
@@ -911,16 +1165,17 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                       size: 20,
                     ),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Modo Oscuro',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
+                      color: textDark,
                     ),
                   ),
                   subtitle: Text(
                     isDark ? 'Tema oscuro activo' : 'Tema claro activo',
-                    style: const TextStyle(fontSize: 12, color: kTextMuted),
+                    style: TextStyle(fontSize: 12, color: textMuted),
                   ),
                   value: isDark,
                   activeThumbColor: kPrimaryColor,
@@ -935,7 +1190,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                 );
               },
             ),
-            const Divider(color: kBorderColor, height: 1),
+            Divider(color: border, height: 1),
 
             ListTile(
               leading: Container(

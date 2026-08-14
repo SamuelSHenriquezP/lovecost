@@ -44,13 +44,13 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: kSurfaceColor,
-        title: const Text(
+        backgroundColor: context.nidoSurface,
+        title: Text(
           'Nueva Meta de Ahorro',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: kTextDark,
+            color: context.nidoTextDark,
           ),
         ),
         content: Column(
@@ -59,12 +59,14 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
             TextField(
               controller: titleController,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.nidoTextDark),
+              decoration: InputDecoration(
                 labelText: '¿Para qué estamos ahorrando?',
+                labelStyle: TextStyle(color: context.nidoTextMuted),
                 prefixIcon: Icon(
                   Icons.flag_outlined,
                   size: 20,
-                  color: kTextMuted,
+                  color: context.nidoTextMuted,
                 ),
               ),
             ),
@@ -73,12 +75,14 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
               controller: targetController,
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.nidoTextDark),
+              decoration: InputDecoration(
                 labelText: 'Meta \$',
+                labelStyle: TextStyle(color: context.nidoTextMuted),
                 prefixIcon: Icon(
                   Icons.attach_money,
                   size: 20,
-                  color: kTextMuted,
+                  color: context.nidoTextMuted,
                 ),
               ),
             ),
@@ -87,7 +91,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: kTextMuted)),
+            child: Text('Cancelar', style: TextStyle(color: context.nidoTextMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -147,31 +151,46 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        backgroundColor: context.nidoSurface,
+        title: Text(
           'Modificar Meta de Ahorro',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: context.nidoTextDark,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Título de la meta'),
+              style: TextStyle(color: context.nidoTextDark),
+              decoration: InputDecoration(
+                labelText: 'Título de la meta',
+                labelStyle: TextStyle(color: context.nidoTextMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: targetCtrl,
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
-              decoration: const InputDecoration(labelText: 'Monto objetivo \$'),
+              style: TextStyle(color: context.nidoTextDark),
+              decoration: InputDecoration(
+                labelText: 'Monto objetivo \$',
+                labelStyle: TextStyle(color: context.nidoTextMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: currentCtrl,
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.nidoTextDark),
+              decoration: InputDecoration(
                 labelText: 'Saldo actual ahorrado \$',
+                labelStyle: TextStyle(color: context.nidoTextMuted),
               ),
             ),
           ],
@@ -179,7 +198,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.nidoTextMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -233,12 +252,19 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('¿Borrar meta de ahorro?'),
-        content: Text('¿Seguro que deseas borrar "$title"?'),
+        backgroundColor: context.nidoSurface,
+        title: Text(
+          '¿Borrar meta de ahorro?',
+          style: TextStyle(color: context.nidoTextDark),
+        ),
+        content: Text(
+          '¿Seguro que deseas borrar "$title"?',
+          style: TextStyle(color: context.nidoTextMuted),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.nidoTextMuted)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -282,10 +308,14 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: kSurfaceColor,
-        title: const Text(
+        backgroundColor: context.nidoSurface,
+        title: Text(
           'Abonar al Ahorro',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: context.nidoTextDark,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -293,7 +323,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
           children: [
             Text(
               'Faltan ${formatCurrency(remaining)} para la meta.',
-              style: const TextStyle(fontSize: 13, color: kTextMuted),
+              style: TextStyle(fontSize: 13, color: context.nidoTextMuted),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -301,12 +331,14 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [ThousandsSeparatorInputFormatter()],
               autofocus: true,
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.nidoTextDark),
+              decoration: InputDecoration(
                 labelText: 'Monto a abonar \$',
+                labelStyle: TextStyle(color: context.nidoTextMuted),
                 prefixIcon: Icon(
                   Icons.attach_money,
                   size: 20,
-                  color: kTextMuted,
+                  color: context.nidoTextMuted,
                 ),
               ),
             ),
@@ -315,7 +347,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: kTextMuted)),
+            child: Text('Cancelar', style: TextStyle(color: context.nidoTextMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -421,6 +453,11 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
       );
     }
 
+    final surface = context.nidoSurface;
+    final border = context.nidoBorder;
+    final textDark = context.nidoTextDark;
+    final textMuted = context.nidoTextMuted;
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
       itemCount: goals.length,
@@ -437,12 +474,12 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
           decoration: BoxDecoration(
             color: isCompleted
                 ? kSecondaryColor.withValues(alpha: 0.08)
-                : kSurfaceColor,
+                : surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isCompleted
                   ? kSecondaryColor.withValues(alpha: 0.4)
-                  : kBorderColor,
+                  : border,
               width: 1.2,
             ),
           ),
@@ -454,10 +491,10 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                   Expanded(
                     child: Text(
                       goal.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: kTextDark,
+                        color: textDark,
                       ),
                     ),
                   ),
@@ -481,10 +518,10 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                       ),
                     ),
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.edit_outlined,
                       size: 18,
-                      color: kTextMuted,
+                      color: textMuted,
                     ),
                     onPressed: () => _editarMeta(
                       context,
@@ -512,7 +549,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 8,
-                  backgroundColor: kBorderColor,
+                  backgroundColor: border,
                   color: isCompleted ? kSecondaryColor : kPrimaryColor,
                 ),
               ),
@@ -522,14 +559,14 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                 children: [
                   Text(
                     '${formatCurrency(goal.current)} de ${formatCurrency(goal.target)}',
-                    style: const TextStyle(fontSize: 12, color: kTextMuted),
+                    style: TextStyle(fontSize: 12, color: textMuted),
                   ),
                   Text(
                     '${(progress * 100).toInt()}%',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: kTextDark,
+                      color: textDark,
                     ),
                   ),
                 ],
@@ -554,7 +591,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: kSurfaceColor,
+                      backgroundColor: surface,
                       foregroundColor: kPrimaryColor,
                       elevation: 0,
                       side: const BorderSide(color: kPrimaryColor, width: 1.0),

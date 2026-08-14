@@ -19,7 +19,7 @@ class HistoryScreen extends StatelessWidget {
         builder: (context, snapshot) {
           final raw = snapshot.data ?? [];
           final periods = raw.map((e) => HistoryPeriod.fromJson(e)).toList();
-          return _buildHistoryUI(periods);
+          return _buildHistoryUI(context, periods);
         },
       );
     }
@@ -43,12 +43,17 @@ class HistoryScreen extends StatelessWidget {
             .map((d) => HistoryPeriod.fromFirestore(d))
             .toList();
 
-        return _buildHistoryUI(periods);
+        return _buildHistoryUI(context, periods);
       },
     );
   }
 
-  Widget _buildHistoryUI(List<HistoryPeriod> periods) {
+  Widget _buildHistoryUI(BuildContext context, List<HistoryPeriod> periods) {
+    final surface = context.nidoSurface;
+    final border = context.nidoBorder;
+    final textDark = context.nidoTextDark;
+    final textMuted = context.nidoTextMuted;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Histórico de Periodos')),
       body: periods.isEmpty
@@ -69,9 +74,9 @@ class HistoryScreen extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 14),
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: kSurfaceColor,
+                    color: surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: kBorderColor, width: 1.2),
+                    border: Border.all(color: border, width: 1.2),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,10 +91,10 @@ class HistoryScreen extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             p.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: kTextDark,
+                              color: textDark,
                             ),
                           ),
                           const Spacer(),
@@ -99,9 +104,10 @@ class HistoryScreen extends StatelessWidget {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: isPositive
-                                  ? Colors.green.shade50
-                                  : Colors.red.shade50,
+                              color: (isPositive
+                                      ? kIncomeColor
+                                      : kExpenseColor)
+                                  .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -124,11 +130,11 @@ class HistoryScreen extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Ingresos',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: kTextMuted,
+                                  color: textMuted,
                                 ),
                               ),
                               Text(
@@ -144,11 +150,11 @@ class HistoryScreen extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Gastos',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: kTextMuted,
+                                  color: textMuted,
                                 ),
                               ),
                               Text(
@@ -164,11 +170,11 @@ class HistoryScreen extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text(
+                              Text(
                                 'Balance Final',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: kTextMuted,
+                                  color: textMuted,
                                 ),
                               ),
                               Text(
