@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lovecost/main.dart';
+import 'package:lovecost/screens/add_expense_bottom_sheet.dart';
 
 void main() {
   testWidgets('NidoApp smoke test', (WidgetTester tester) async {
