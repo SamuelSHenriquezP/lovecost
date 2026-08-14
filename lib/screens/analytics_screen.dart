@@ -135,17 +135,66 @@ class AnalyticsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildMetricTile('Ingresos', formatCurrency(totalIngresos), kIncomeColor, textMuted),
-                      _buildMetricTile('Gastos', formatCurrency(totalGastos), kExpenseColor, textMuted),
                       _buildMetricTile(
-                        'Superávit',
-                        formatCurrency(ahorroNeto),
-                        ahorroNeto >= 0 ? kDisponibleColor : kExpenseColor,
-                        textMuted,
+                        label: 'Ingresos',
+                        value: formatCurrency(totalIngresos),
+                        color: kIncomeColor,
+                        textMuted: textMuted,
+                        bg: bg,
+                        border: border,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildMetricTile(
+                        label: 'Gastos',
+                        value: formatCurrency(totalGastos),
+                        color: kExpenseColor,
+                        textMuted: textMuted,
+                        bg: bg,
+                        border: border,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildMetricTile(
+                        label: 'Balance',
+                        value: formatCurrency(ahorroNeto),
+                        color: ahorroNeto >= 0 ? kDisponibleColor : kExpenseColor,
+                        textMuted: textMuted,
+                        bg: bg,
+                        border: border,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Gráfica de barras sencilla: 3 valores comparados
+                  _buildSimpleBar(
+                    label: 'Ingresos',
+                    value: totalIngresos,
+                    maxValue: [totalIngresos, totalGastos, ahorroNeto.abs()].reduce((a, b) => a > b ? a : b).clamp(1.0, double.infinity),
+                    color: const Color(0xFF34D399),
+                    textMuted: textMuted,
+                    textDark: textDark,
+                    bg: bg,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildSimpleBar(
+                    label: 'Egresos',
+                    value: totalGastos,
+                    maxValue: [totalIngresos, totalGastos, ahorroNeto.abs()].reduce((a, b) => a > b ? a : b).clamp(1.0, double.infinity),
+                    color: const Color(0xFFFF5252),
+                    textMuted: textMuted,
+                    textDark: textDark,
+                    bg: bg,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildSimpleBar(
+                    label: 'Balance',
+                    value: ahorroNeto.abs(),
+                    maxValue: [totalIngresos, totalGastos, ahorroNeto.abs()].reduce((a, b) => a > b ? a : b).clamp(1.0, double.infinity),
+                    color: ahorroNeto >= 0 ? kDisponibleColor : kExpenseColor,
+                    prefix: ahorroNeto >= 0 ? '+' : '-',
+                    textMuted: textMuted,
+                    textDark: textDark,
+                    bg: bg,
                   ),
                 ],
               ),
@@ -192,20 +241,32 @@ class AnalyticsScreen extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  entry.key,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: textDark,
+                                Expanded(
+                                  child: Text(
+                                    entry.key,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: textDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Text(
-                                  '${formatCurrency(entry.value)} (${(porcentaje * 100).toStringAsFixed(1)}%)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: textDark,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '${formatCurrency(entry.value)} (${(porcentaje * 100).toStringAsFixed(1)}%)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: textDark,
+                                      ),
+                                      maxLines: 1,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -337,28 +398,126 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMetricTile(String label, String value, Color color, Color textMuted) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSimpleBar({
+    required String label,
+    required double value,
+    required double maxValue,
+    required Color color,
+    required Color textMuted,
+    required Color textDark,
+    required Color bg,
+    String prefix = '',
+  }) {
+    final ratio = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0) : 0.0;
+    return Row(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: textMuted,
-            fontWeight: FontWeight.w600,
+        SizedBox(
+          width: 60,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textMuted,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: color,
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Stack(
+              children: [
+                // Fondo de la barra
+                Container(height: 22, color: bg),
+                // Relleno proporcional animado
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: ratio),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, val, _) => FractionallySizedBox(
+                    widthFactor: val,
+                    child: Container(
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$prefix${formatCurrency(value)}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMetricTile({
+    required String label,
+    required String value,
+    required Color color,
+    required Color textMuted,
+    required Color bg,
+    required Color border,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border, width: 1.0),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

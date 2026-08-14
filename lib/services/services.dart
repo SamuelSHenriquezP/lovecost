@@ -282,6 +282,8 @@ class _SmoothCurrencyTextState extends State<SmoothCurrencyText> {
         return Text(
           '${val < 0 ? '-' : ''}${formatCurrency(val.abs())}',
           style: widget.style,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         );
       },
     );
