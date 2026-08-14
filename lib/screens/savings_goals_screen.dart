@@ -557,10 +557,18 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${formatCurrency(goal.current)} de ${formatCurrency(goal.target)}',
-                    style: TextStyle(fontSize: 12, color: textMuted),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${formatCurrency(goal.current)} de ${formatCurrency(goal.target)}',
+                        style: TextStyle(fontSize: 12, color: textMuted),
+                        maxLines: 1,
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     '${(progress * 100).toInt()}%',
                     style: TextStyle(

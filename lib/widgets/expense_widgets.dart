@@ -510,20 +510,22 @@ class ExpenseCard extends StatelessWidget {
                               ),
                             ),
 
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isIncome
-                                        ? kIncomeColor.withValues(alpha: 0.12)
-                                        : kExpenseColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 120),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isIncome
+                                      ? kIncomeColor.withValues(alpha: 0.12)
+                                      : kExpenseColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
                                   child: Text(
                                     '${isIncome ? '+' : '-'}${formatCurrency(expense.amount)}',
                                     style: TextStyle(
@@ -533,9 +535,11 @@ class ExpenseCard extends StatelessWidget {
                                           ? kIncomeColor
                                           : kExpenseColor,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
                           ],
                         ),

@@ -127,67 +127,94 @@ class HistoryScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ingresos',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: textMuted,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Ingresos',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              Text(
-                                formatCurrency(p.totalIncome),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: kIncomeColor,
-                                  fontSize: 13,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    formatCurrency(p.totalIncome),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: kIncomeColor,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Gastos',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: textMuted,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Gastos',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              Text(
-                                formatCurrency(p.totalExpense),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: kExpenseColor,
-                                  fontSize: 13,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    formatCurrency(p.totalExpense),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: kExpenseColor,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Balance Final',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: textMuted,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'Balance Final',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              Text(
-                                formatCurrency(p.balance),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: isPositive
-                                      ? kIncomeColor
-                                      : kExpenseColor,
-                                  fontSize: 14,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    formatCurrency(p.balance),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: isPositive
+                                          ? kIncomeColor
+                                          : kExpenseColor,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),

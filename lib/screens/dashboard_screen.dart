@@ -271,11 +271,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    final disponibleBase = budgetLimit + totalIngresos;
-    final disponibleReal = disponibleBase - totalGastos;
-    final porcentajeGastado = disponibleBase > 0
-        ? (totalGastos / disponibleBase).clamp(0.0, 1.0)
-        : 0.0;
+    final disponibleReal = totalIngresos - totalGastos;
 
     final filtered = allTransactions.where((t) {
       if (_filterType == 'income' && !t.isIncome) return false;
@@ -384,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.account_balance_wallet,
+                            Icons.account_balance_wallet_rounded,
                             color: Colors.white,
                             size: 16,
                           ),
@@ -397,50 +393,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () =>
-                                _showEditBudgetDialog(context, budgetLimit),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Meta: ${formatCurrency(budgetLimit)}',
-                                    style: const TextStyle(
-                                      fontSize: 10.5,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: () =>
+                                  _showEditBudgetDialog(context, budgetLimit),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          'Meta: ${formatCurrency(budgetLimit)}',
+                                          style: const TextStyle(
+                                            fontSize: 10.5,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 3),
-                                  const Icon(
-                                    Icons.edit_outlined,
-                                    size: 10,
-                                    color: Colors.white,
-                                  ),
-                                ],
+                                    const SizedBox(width: 3),
+                                    const Icon(
+                                      Icons.edit_outlined,
+                                      size: 10,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 6),
                           if (!_disponibleExpanded)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: SmoothCurrencyText(
-                                value: disponibleReal,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: SmoothCurrencyText(
+                                    value: disponibleReal,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -466,135 +476,148 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 12),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: SmoothCurrencyText(
-                              value: disponibleReal,
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w900,
-                                color: disponibleReal < 0
-                                    ? const Color(0xFFFF8A80)
-                                    : Colors.white,
-                                letterSpacing: -1.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TweenAnimationBuilder<double>(
-                            key: ValueKey(porcentajeGastado),
-                            tween: Tween(begin: 0.0, end: porcentajeGastado),
-                            duration: const Duration(milliseconds: 1000),
-                            curve: Curves.easeOutCubic,
-                            builder: (context, val, child) => ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: LinearProgressIndicator(
-                                value: val,
-                                backgroundColor: Colors.white.withValues(
-                                  alpha: 0.25,
+                          SizedBox(
+                            width: double.infinity,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: SmoothCurrencyText(
+                                value: disponibleReal,
+                                style: TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w900,
+                                  color: disponibleReal < 0
+                                      ? const Color(0xFFFF8A80)
+                                      : Colors.white,
+                                  letterSpacing: -1.2,
                                 ),
-                                color: porcentajeGastado >= 0.9
-                                    ? const Color(0xFFFF5252)
-                                    : porcentajeGastado > 0.75
-                                    ? Colors.amber.shade300
-                                    : const Color(0xFF6EE7B7),
-                                minHeight: 8,
                               ),
                             ),
                           ),
                           const SizedBox(height: 16),
 
+                          // ==========================================
+                          // TARJETAS DE MÉTRICAS (INGRESOS, GASTOS, META)
+                          // Con ajuste automático FittedBox para evitar sobreposición
+                          // ==========================================
                           Row(
                             children: [
+                              // Tarjeta Ingresos
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.15),
+                                    color: Colors.white.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
+                                      color: Colors.white.withValues(alpha: 0.18),
                                     ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Row(
                                         children: [
                                           Icon(
                                             Icons.arrow_upward_rounded,
-                                            size: 16,
+                                            size: 14,
                                             color: Color(0xFF6EE7B7),
                                           ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Ingresos (+)',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
+                                          SizedBox(width: 3),
+                                          Expanded(
+                                            child: Text(
+                                              'Ingresos (+)',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatCurrency(totalIngresos),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
+                                      const SizedBox(height: 5),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            formatCurrency(totalIngresos),
+                                            style: const TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                            maxLines: 1,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 8),
+
+                              // Tarjeta Gastos
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.15),
+                                    color: Colors.white.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
+                                      color: Colors.white.withValues(alpha: 0.18),
                                     ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Row(
                                         children: [
                                           Icon(
                                             Icons.arrow_downward_rounded,
-                                            size: 16,
+                                            size: 14,
                                             color: Color(0xFFFCA5A5),
                                           ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Gastos (-)',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
+                                          SizedBox(width: 3),
+                                          Expanded(
+                                            child: Text(
+                                              'Gastos (-)',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatCurrency(totalGastos),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
+                                      const SizedBox(height: 5),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            formatCurrency(totalGastos),
+                                            style: const TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                            maxLines: 1,
+                                          ),
                                         ),
                                       ),
                                     ],
