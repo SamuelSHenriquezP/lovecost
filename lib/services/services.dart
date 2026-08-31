@@ -6,60 +6,23 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'notification_service.dart';
+export 'notification_service.dart';
+export 'nido_repository.dart';
 
 // ==========================================
-// NOTIFICACIONES LOCALES Y PERMISOS
+// NOTIFICACIONES LOCALES Y PERMISOS (DELEGACIÓN)
 // ==========================================
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
 Future<void> initLocalNotifications() async {
-  try {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-  } catch (e) {
-    debugPrint('Error iniciando notificaciones locales: $e');
-  }
+  await NotificationService.instance.initialize();
 }
 
 Future<void> requestNotificationPermissions() async {
-  try {
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
-  } catch (e) {
-    debugPrint('Error solicitando permisos de notificación: $e');
-  }
+  await NotificationService.instance.requestPermissions();
 }
 
 Future<void> showLocalNotification(String title, String body) async {
-  try {
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'nido_notifications_v2',
-          'Notificaciones Nido',
-          channelDescription: 'Guiños de amor y comentarios en gastos',
-          importance: Importance.max,
-          priority: Priority.high,
-          showWhen: true,
-        );
-    const NotificationDetails platformDetails = NotificationDetails(
-      android: androidDetails,
-    );
-    await flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      platformDetails,
-    );
-  } catch (e) {
-    debugPrint('Error mostrando notificación: $e');
-  }
+  await NotificationService.instance.showNotification(title: title, body: body);
 }
 
 // ==========================================

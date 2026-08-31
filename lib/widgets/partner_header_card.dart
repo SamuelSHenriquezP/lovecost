@@ -735,20 +735,21 @@ class _PartnerHeaderCardState extends State<PartnerHeaderCard> {
 
         final bool isPaired = partnerName != null && partnerName.isNotEmpty;
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: border, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
+        return RepaintBoundary(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: border, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
           child: Row(
             children: [
               SizedBox(
@@ -900,7 +901,8 @@ class _PartnerHeaderCardState extends State<PartnerHeaderCard> {
               ),
             ],
           ),
-        );
+        ),
+      );
       },
     );
   }

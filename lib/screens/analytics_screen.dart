@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../main.dart';
 
 // ==========================================
@@ -19,32 +18,17 @@ class AnalyticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (mode == NidoUsageMode.guest) {
-      return FutureBuilder<List<Map<String, dynamic>>>(
-        future: LocalGuestStorage.getExpenses(),
-        builder: (context, snapshot) {
-          final raw = snapshot.data ?? [];
-          final transactions = raw.map((e) => Expense.fromJson(e)).toList();
-          return _buildAnalyticsContent(context, transactions);
-        },
-      );
-    }
-
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('couples')
-          .doc(coupleId)
-          .collection('expenses')
-          .where(
-            'date',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
-          )
-          .snapshots(),
+    return StreamBuilder<List<Expense>>(
+      stream: NidoRepository.instance.streamExpenses(
+        coupleId: coupleId,
+        mode: mode,
+        cycleStartDate: startOfMonth,
+      ),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: kPrimaryColor),
@@ -52,9 +36,7 @@ class AnalyticsScreen extends StatelessWidget {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        final transactions = docs.map((d) => Expense.fromFirestore(d)).toList();
-
+        final transactions = snapshot.data ?? [];
         return _buildAnalyticsContent(context, transactions);
       },
     );

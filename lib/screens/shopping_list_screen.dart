@@ -478,58 +478,60 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
       itemBuilder: (context, index) {
         final item = items[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8.0),
-          decoration: BoxDecoration(
-            color: item.isBought ? bg : surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: item.isBought
-                  ? border.withValues(alpha: 0.5)
-                  : border,
-              width: 1.0,
-            ),
-          ),
-          child: ListTile(
-            title: Text(
-              item.name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                decoration: item.isBought ? TextDecoration.lineThrough : null,
-                color: item.isBought ? textMuted : textDark,
+        return RepaintBoundary(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8.0),
+            decoration: BoxDecoration(
+              color: item.isBought ? bg : surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: item.isBought
+                    ? border.withValues(alpha: 0.5)
+                    : border,
+                width: 1.0,
               ),
             ),
-            leading: Checkbox(
-              value: item.isBought,
-              activeColor: kSecondaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+            child: ListTile(
+              title: Text(
+                item.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  decoration: item.isBought ? TextDecoration.lineThrough : null,
+                  color: item.isBought ? textMuted : textDark,
+                ),
               ),
-              onChanged: (_) => _toggleItem(item.id, item.isBought, item.name),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    size: 18,
-                    color: textMuted,
-                  ),
-                  onPressed: () => _editarItem(item.id, item.name),
-                  tooltip: 'Modificar',
+              leading: Checkbox(
+                value: item.isBought,
+                activeColor: kSecondaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 18,
-                    color: kDangerColor,
+                onChanged: (_) => _toggleItem(item.id, item.isBought, item.name),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: textMuted,
+                    ),
+                    onPressed: () => _editarItem(item.id, item.name),
+                    tooltip: 'Modificar',
                   ),
-                  onPressed: () => _eliminarItem(item.id, item.name),
-                  tooltip: 'Eliminar',
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: kDangerColor,
+                    ),
+                    onPressed: () => _eliminarItem(item.id, item.name),
+                    tooltip: 'Eliminar',
+                  ),
+                ],
+              ),
             ),
           ),
         );

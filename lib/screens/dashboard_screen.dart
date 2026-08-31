@@ -88,34 +88,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Stream<List<Expense>> _streamExpenses(DateTime cycleStartDate) {
-    return FirebaseFirestore.instance
-        .collection('couples')
-        .doc(widget.coupleId)
-        .collection('expenses')
-        .where(
-          'date',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(cycleStartDate),
-        )
-        .snapshots()
-        .map((snapshot) {
-          final items = snapshot.docs
-              .map((doc) => Expense.fromFirestore(doc))
-              .toList();
-          items.sort((a, b) => b.date.compareTo(a.date));
-          return items;
-        });
+    return NidoRepository.instance.streamExpenses(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+      cycleStartDate: cycleStartDate,
+    );
   }
 
   Stream<List<CustomCategory>> _streamCustomCategories() {
-    return FirebaseFirestore.instance
-        .collection('couples')
-        .doc(widget.coupleId)
-        .collection('categories')
-        .snapshots()
-        .map(
-          (snap) =>
-              snap.docs.map((d) => CustomCategory.fromFirestore(d)).toList(),
-        );
+    return NidoRepository.instance.streamCategories(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+    );
   }
 
   void _showEditBudgetDialog(BuildContext context, double currentBudget) {

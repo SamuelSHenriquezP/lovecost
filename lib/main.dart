@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'core/theme.dart';
 import 'screens/auth_gate.dart';
+import 'services/notification_service.dart';
+
 export 'core/theme.dart';
 export 'models/models.dart';
 export 'services/services.dart';
@@ -21,63 +22,8 @@ export 'widgets/partner_header_card.dart';
 export 'widgets/expense_widgets.dart';
 export 'widgets/common_widgets.dart';
 
-
-
 // ==========================================
-// NOTIFICACIONES LOCALES Y PERMISOS
-// ==========================================
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
-Future<void> initLocalNotifications() async {
-  try {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-  } catch (e) {
-    debugPrint('Error iniciando notificaciones locales: $e');
-  }
-}
-
-Future<void> requestNotificationPermissions() async {
-  try {
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
-  } catch (e) {
-    debugPrint('Error solicitando permisos de notificación: $e');
-  }
-}
-
-Future<void> showLocalNotification(String title, String body) async {
-  try {
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'nido_notifications_v2',
-          'Notificaciones Nido',
-          channelDescription: 'Guiños de amor y comentarios en gastos',
-          importance: Importance.max,
-          priority: Priority.high,
-          showWhen: true,
-        );
-    const NotificationDetails platformDetails = NotificationDetails(
-      android: androidDetails,
-    );
-    await flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      platformDetails,
-    );
-  } catch (e) {
-    debugPrint('Error mostrando notificación: $e');
-  }
-}
-
-// ==========================================
-// PUNTO DE ENTRADA
+// PUNTO DE ENTRADA CON PERSISTENCIA Y NOTIFICACIONES
 // ==========================================
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,8 +39,18 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await initLocalNotifications();
-    await requestNotificationPermissions();
+
+    // Habilitar Persistencia Offline en Firestore para sincronización transparente
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+    } catch (e) {
+      debugPrint('Aviso: Configuración de persistencia Firestore: $e');
+    }
+
+    await NotificationService.instance.initialize();
+    await NotificationService.instance.requestPermissions();
   } catch (e) {
     initError = e;
   }
@@ -143,8 +99,6 @@ void main() async {
 
   runApp(const NidoApp());
 }
-
-
 
 // ==========================================
 // APP PRINCIPAL

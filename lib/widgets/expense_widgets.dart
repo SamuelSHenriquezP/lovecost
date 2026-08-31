@@ -439,20 +439,21 @@ class ExpenseCard extends StatelessWidget {
           }
           HapticFeedback.lightImpact();
         },
-        child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: border, width: 1.0),
-            boxShadow: [
-              BoxShadow(
-                color: accentColor.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
+        child: RepaintBoundary(
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: border, width: 1.0),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
           child: IntrinsicHeight(
             child: Row(
               children: [
@@ -673,6 +674,7 @@ class ExpenseCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

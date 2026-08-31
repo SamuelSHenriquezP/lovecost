@@ -468,21 +468,22 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
             : 0.0;
         final bool isCompleted = goal.target > 0 && goal.current >= goal.target;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isCompleted
-                ? kSecondaryColor.withValues(alpha: 0.08)
-                : surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
+        return RepaintBoundary(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
               color: isCompleted
-                  ? kSecondaryColor.withValues(alpha: 0.4)
-                  : border,
-              width: 1.2,
+                  ? kSecondaryColor.withValues(alpha: 0.08)
+                  : surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isCompleted
+                    ? kSecondaryColor.withValues(alpha: 0.4)
+                    : border,
+                width: 1.2,
+              ),
             ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -616,7 +617,8 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
               ],
             ],
           ),
-        );
+        ),
+      );
       },
     );
   }
