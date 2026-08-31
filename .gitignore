@@ -3,6 +3,8 @@
 *.log
 *.pyc
 *.swp
+*.tmp
+*.bak
 .DS_Store
 .atom/
 .build/
@@ -11,17 +13,30 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+Thumbs.db
 
-# IntelliJ related
+# Secrets / Credentials / Configuration files
+*.env
+*.env.*
+.env
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+key.properties
+*.keystore
+*.jks
+*.pem
+*.key
+*.crt
+*.p12
+
+# IntelliJ / VS Code related
 *.iml
 *.ipr
 *.iws
 .idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -31,7 +46,19 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+**/build/
+android/build/
+android/.gradle/
 /coverage/
+
+# Flutter Generated Files
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/linux/flutter/generated_plugins.cmake
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
 
 # Symbolication related
 app.*.symbols
