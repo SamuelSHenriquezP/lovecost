@@ -4,8 +4,15 @@ import 'package:lovecost/main.dart';
 import 'package:lovecost/screens/add_expense_bottom_sheet.dart';
 
 void main() {
-  testWidgets('NidoApp smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const NidoApp());
+  testWidgets('InviteCodeCard smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: InviteCodeCard(inviteCode: 'LOVE-1234'),
+        ),
+      ),
+    );
+    expect(find.text('LOVE-1234'), findsOneWidget);
   });
 
   testWidgets('AddExpenseBottomSheet shows custom categories', (

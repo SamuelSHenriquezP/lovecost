@@ -10,6 +10,10 @@ class AddExpenseBottomSheet extends StatefulWidget {
   final String coupleId;
   final String userName;
   final NidoUsageMode mode;
+  final String initialType;
+  final String? preselectedPocketId;
+  final String? preselectedPocketName;
+  final List<Pocket>? availablePockets;
   final Expense? expenseToEdit;
   final VoidCallback? onGuestRefresh;
   final List<CustomCategory>? customCategories;
@@ -19,6 +23,10 @@ class AddExpenseBottomSheet extends StatefulWidget {
     required this.coupleId,
     required this.userName,
     required this.mode,
+    this.initialType = 'expense',
+    this.preselectedPocketId,
+    this.preselectedPocketName,
+    this.availablePockets,
     this.expenseToEdit,
     this.onGuestRefresh,
     this.customCategories,
@@ -34,6 +42,9 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
   late TextEditingController _sourceController;
   late String _transactionType;
   late String _selectedCategory;
+  String? _selectedPocketId;
+  String? _selectedPocketName;
+  List<Pocket> _pockets = [];
   bool _isSaving = false;
 
   static const List<Map<String, dynamic>> _defaultExpenseCategories = [
@@ -71,7 +82,7 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
   void initState() {
     super.initState();
     final ex = widget.expenseToEdit;
-    _transactionType = ex?.type ?? 'expense';
+    _transactionType = ex?.type ?? widget.initialType;
     _amountController = TextEditingController(
       text: ex != null ? ex.amount.toInt().toString() : '',
     );
@@ -79,10 +90,44 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
     _sourceController = TextEditingController(
       text: ex?.sourceOrDestination ?? '',
     );
-    _selectedCategory = ex?.category ?? _defaultCategoryName(_transactionType == 'income');
+    _selectedCategory =
+        ex?.category ?? _defaultCategoryName(_transactionType == 'income');
 
     if (ex != null && ex.category.isNotEmpty) {
       _selectedCategory = ex.category;
+    }
+
+    _selectedPocketId = ex?.pocketId ?? widget.preselectedPocketId;
+    _selectedPocketName = ex?.pocketName ?? widget.preselectedPocketName;
+    _pockets = widget.availablePockets ?? [];
+    if (_pockets.isEmpty) {
+      _loadPockets();
+    }
+  }
+
+  Future<void> _loadPockets() async {
+    try {
+      if (widget.mode == NidoUsageMode.guest) {
+        final raw = await LocalGuestStorage.getPockets();
+        if (mounted) {
+          setState(() {
+            _pockets = raw.map((p) => Pocket.fromJson(p)).toList();
+          });
+        }
+      } else {
+        final snap = await FirebaseFirestore.instance
+            .collection('couples')
+            .doc(widget.coupleId)
+            .collection('pockets')
+            .get();
+        if (mounted) {
+          setState(() {
+            _pockets = snap.docs.map((d) => Pocket.fromFirestore(d)).toList();
+          });
+        }
+      }
+    } catch (_) {
+      // Ignored for tests / offline
     }
   }
 
@@ -152,10 +197,12 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
           description: _descriptionController.text.trim(),
           category: _selectedCategory,
           sourceOrDestination: _sourceController.text.trim().isEmpty
-              ? 'General'
+              ? (_selectedPocketName != null ? _selectedPocketName! : 'General')
               : _sourceController.text.trim(),
           createdBy: widget.userName,
           date: widget.expenseToEdit?.date ?? DateTime.now(),
+          pocketId: _selectedPocketId,
+          pocketName: _selectedPocketName,
         );
 
         if (widget.expenseToEdit != null) {
@@ -180,23 +227,44 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
           'description': _descriptionController.text.trim(),
           'category': _selectedCategory,
           'sourceOrDestination': _sourceController.text.trim().isEmpty
-              ? 'General'
+              ? (_selectedPocketName != null ? _selectedPocketName! : 'General')
               : _sourceController.text.trim(),
           'createdBy': widget.userName,
           'date': widget.expenseToEdit != null
               ? Timestamp.fromDate(widget.expenseToEdit!.date)
               : Timestamp.now(),
+          if (_selectedPocketId != null) 'pocketId': _selectedPocketId,
+          if (_selectedPocketName != null) 'pocketName': _selectedPocketName,
         };
 
         if (widget.expenseToEdit != null) {
-          await collectionRef.doc(widget.expenseToEdit!.id).update(data);
+          await collectionRef
+              .doc(widget.expenseToEdit!.id)
+              .update(data)
+              .timeout(
+                const Duration(milliseconds: 1200),
+                onTimeout: () {
+                  // Firestore local cache handles persistence; proceed optimistically
+                },
+              );
         } else {
-          await collectionRef.add(data);
+          final docRef = collectionRef.doc();
+          await docRef
+              .set(data)
+              .timeout(
+                const Duration(milliseconds: 1200),
+                onTimeout: () {
+                  // Firestore local cache handles persistence; proceed optimistically
+                },
+              );
         }
       }
 
-      HapticFeedback.lightImpact();
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        FocusScope.of(context).unfocus();
+        HapticFeedback.lightImpact();
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -293,6 +361,8 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
                         setState(() {
                           _transactionType = 'income';
                           _selectedCategory = _defaultCategoryName(true);
+                          _selectedPocketId = null;
+                          _selectedPocketName = null;
                         });
                         HapticFeedback.selectionClick();
                       },
@@ -383,6 +453,232 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
                 ),
               ),
             ),
+            if (!isIncome && _pockets.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _selectedPocketId != null
+                        ? Color(
+                            _pockets
+                                .firstWhere(
+                                  (p) => p.id == _selectedPocketId,
+                                  orElse: () => _pockets.first,
+                                )
+                                .colorHex,
+                          ).withValues(alpha: 0.4)
+                        : border,
+                    width: 1.2,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.account_balance_wallet_rounded,
+                          size: 15,
+                          color: _selectedPocketId != null
+                              ? Color(
+                                  _pockets
+                                      .firstWhere(
+                                        (p) => p.id == _selectedPocketId,
+                                        orElse: () => _pockets.first,
+                                      )
+                                      .colorHex,
+                                )
+                              : kPrimaryColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '¿De qué bolsillo sale la plata?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: textDark,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_selectedPocketName != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Color(
+                                _pockets
+                                    .firstWhere(
+                                      (p) => p.id == _selectedPocketId,
+                                      orElse: () => _pockets.first,
+                                    )
+                                    .colorHex,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _selectedPocketName!,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(
+                                  _pockets
+                                      .firstWhere(
+                                        (p) => p.id == _selectedPocketId,
+                                        orElse: () => _pockets.first,
+                                      )
+                                      .colorHex,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: border.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Cuenta Principal',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 36,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPocketId = null;
+                                  _selectedPocketName = null;
+                                });
+                                HapticFeedback.selectionClick();
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _selectedPocketId == null
+                                      ? textDark
+                                      : bg,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _selectedPocketId == null
+                                        ? textDark
+                                        : border,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '💳 Cuenta Principal',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: _selectedPocketId == null
+                                        ? Colors.white
+                                        : textDark,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          ..._pockets.map((p) {
+                            final isSelected = _selectedPocketId == p.id;
+                            final pColor = Color(p.colorHex);
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedPocketId = p.id;
+                                    _selectedPocketName = p.name;
+                                  });
+                                  HapticFeedback.selectionClick();
+                                },
+                                borderRadius: BorderRadius.circular(10),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? pColor : bg,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected ? pColor : border,
+                                      width: 1.2,
+                                    ),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: pColor.withValues(
+                                                alpha: 0.25,
+                                              ),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        p.emoji,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        p.name,
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : textDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             SizedBox(

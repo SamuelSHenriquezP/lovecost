@@ -13,19 +13,22 @@ class NidoRepository {
   // EXPENSES / MOVIMIENTOS
   // ==========================================
 
-  /// Stream of active expenses starting from cycleStartDate.
+  /// Stream of active expenses starting from cycleStartDate (and optional cycleEndDate).
   Stream<List<Expense>> streamExpenses({
     required String coupleId,
     required NidoUsageMode mode,
     required DateTime cycleStartDate,
+    DateTime? cycleEndDate,
     int? limit,
   }) {
     if (mode == NidoUsageMode.guest) {
       return Stream.fromFuture(LocalGuestStorage.getExpenses()).map((raw) {
         final parsed = raw.map((e) => Expense.fromJson(e)).toList();
-        final filtered = parsed
-            .where((e) => !e.date.isBefore(cycleStartDate))
-            .toList();
+        final filtered = parsed.where((e) {
+          if (e.date.isBefore(cycleStartDate)) return false;
+          if (cycleEndDate != null && e.date.isAfter(cycleEndDate)) return false;
+          return true;
+        }).toList();
         filtered.sort((a, b) => b.date.compareTo(a.date));
         if (limit != null && filtered.length > limit) {
           return filtered.sublist(0, limit);
@@ -38,8 +41,13 @@ class NidoRepository {
         .collection('couples')
         .doc(coupleId)
         .collection('expenses')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(cycleStartDate))
-        .orderBy('date', descending: true);
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(cycleStartDate));
+
+    if (cycleEndDate != null) {
+      query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(cycleEndDate));
+    }
+
+    query = query.orderBy('date', descending: true);
 
     if (limit != null) {
       query = query.limit(limit);
@@ -61,11 +69,13 @@ class NidoRepository {
       list.add(expense.toJson());
       await LocalGuestStorage.saveExpenses(list);
     } else {
-      await _firestore
+      final docRef = _firestore
           .collection('couples')
           .doc(coupleId)
           .collection('expenses')
-          .add({
+          .doc(expense.id.isNotEmpty ? expense.id : null);
+      await docRef
+          .set({
             'type': expense.type,
             'amount': expense.amount,
             'description': expense.description,
@@ -74,7 +84,13 @@ class NidoRepository {
             'createdBy': expense.createdBy,
             'date': Timestamp.fromDate(expense.date),
             'reactions': expense.reactions,
-          });
+            if (expense.pocketId != null) 'pocketId': expense.pocketId,
+            if (expense.pocketName != null) 'pocketName': expense.pocketName,
+          })
+          .timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () {},
+          );
     }
   }
 
@@ -94,7 +110,11 @@ class NidoRepository {
           .doc(coupleId)
           .collection('expenses')
           .doc(expenseId)
-          .delete();
+          .delete()
+          .timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () {},
+          );
     }
   }
 
@@ -182,6 +202,122 @@ class NidoRepository {
           .collection('couples')
           .doc(coupleId)
           .update({'budget_limit': budgetLimit});
+    }
+  }
+
+  // ==========================================
+  // BOLSILLOS (POCKETS)
+  // ==========================================
+
+  /// Stream of bolsillos (pockets).
+  Stream<List<Pocket>> streamPockets({
+    required String coupleId,
+    required NidoUsageMode mode,
+  }) {
+    if (mode == NidoUsageMode.guest) {
+      return Stream.fromFuture(LocalGuestStorage.getPockets()).map((raw) {
+        return raw.map((p) => Pocket.fromJson(p)).toList();
+      });
+    }
+
+    return _firestore
+        .collection('couples')
+        .doc(coupleId)
+        .collection('pockets')
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Pocket.fromFirestore(d)).toList());
+  }
+
+  /// Adds a new pocket and returns its ID.
+  Future<String> addPocket({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required Pocket pocket,
+  }) async {
+    if (mode == NidoUsageMode.guest) {
+      final list = await LocalGuestStorage.getPockets();
+      list.add(pocket.toJson());
+      await LocalGuestStorage.savePockets(list);
+      return pocket.id;
+    } else {
+      final docRef = _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .collection('pockets')
+          .doc(pocket.id.isNotEmpty ? pocket.id : null);
+      await docRef
+          .set({
+            'name': pocket.name,
+            'emoji': pocket.emoji,
+            'colorHex': pocket.colorHex,
+            'targetAmount': pocket.targetAmount,
+            'initialAmount': pocket.initialAmount,
+            'createdBy': pocket.createdBy,
+            'createdAt': FieldValue.serverTimestamp(),
+          })
+          .timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () {},
+          );
+      return docRef.id;
+    }
+  }
+
+  /// Updates an existing pocket.
+  Future<void> updatePocket({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required Pocket pocket,
+  }) async {
+    if (mode == NidoUsageMode.guest) {
+      final list = await LocalGuestStorage.getPockets();
+      final idx = list.indexWhere((p) => p['id'] == pocket.id);
+      if (idx != -1) {
+        list[idx] = pocket.toJson();
+        await LocalGuestStorage.savePockets(list);
+      }
+    } else {
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .collection('pockets')
+          .doc(pocket.id)
+          .update({
+            'name': pocket.name,
+            'emoji': pocket.emoji,
+            'colorHex': pocket.colorHex,
+            'targetAmount': pocket.targetAmount,
+            'initialAmount': pocket.initialAmount,
+          })
+          .timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () {},
+          );
+    }
+  }
+
+  /// Deletes a pocket by ID.
+  Future<void> deletePocket({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required String pocketId,
+  }) async {
+    if (mode == NidoUsageMode.guest) {
+      final list = await LocalGuestStorage.getPockets();
+      list.removeWhere((p) => p['id'] == pocketId);
+      await LocalGuestStorage.savePockets(list);
+    } else {
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .collection('pockets')
+          .doc(pocketId)
+          .delete()
+          .timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () {},
+          );
     }
   }
 }

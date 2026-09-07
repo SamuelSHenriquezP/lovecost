@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
+import '../widgets/color_picker.dart';
+import 'pockets_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   final String coupleId;
@@ -519,36 +521,13 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
   void _crearNuevaCategoria() {
     final nameCtrl = TextEditingController();
     final emojiCtrl = TextEditingController(text: '🏷️');
-    int red = 13;
-    int green = 148;
-    int blue = 136;
-    double alpha = 1.0;
+    Color currentColor = const Color(0xFF0D9488);
     String selectedType = 'expense';
-
-    final List<Color> presetColors = [
-      const Color(0xFF0D9488),
-      const Color(0xFF00897B),
-      const Color(0xFF2563EB),
-      const Color(0xFF6366F1),
-      const Color(0xFF9333EA),
-      const Color(0xFFDB2777),
-      const Color(0xFF059669),
-      const Color(0xFFE53935),
-      const Color(0xFFF59E0B),
-      const Color(0xFF475569),
-    ];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final currentColor = Color.fromARGB(
-            (alpha * 255).round(),
-            red,
-            green,
-            blue,
-          );
-
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -677,149 +656,20 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   Text(
-                    'Selector de Color (RGBA libre):',
+                    'Color de la categoría:',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: context.nidoTextDark,
                     ),
                   ),
-                  const SizedBox(height: 8),
-
-                  // Slider Rojo
-                  Row(
-                    children: [
-                      const Text('🔴', style: TextStyle(fontSize: 12)),
-                      Expanded(
-                        child: Slider(
-                          value: red.toDouble(),
-                          min: 0,
-                          max: 255,
-                          activeColor: Colors.red,
-                          onChanged: (val) =>
-                              setDialogState(() => red = val.round()),
-                        ),
-                      ),
-                      Text(
-                        '$red',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: context.nidoTextMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Slider Verde
-                  Row(
-                    children: [
-                      const Text('🟢', style: TextStyle(fontSize: 12)),
-                      Expanded(
-                        child: Slider(
-                          value: green.toDouble(),
-                          min: 0,
-                          max: 255,
-                          activeColor: Colors.green,
-                          onChanged: (val) =>
-                              setDialogState(() => green = val.round()),
-                        ),
-                      ),
-                      Text(
-                        '$green',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: context.nidoTextMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Slider Azul
-                  Row(
-                    children: [
-                      const Text('🔵', style: TextStyle(fontSize: 12)),
-                      Expanded(
-                        child: Slider(
-                          value: blue.toDouble(),
-                          min: 0,
-                          max: 255,
-                          activeColor: Colors.blue,
-                          onChanged: (val) =>
-                              setDialogState(() => blue = val.round()),
-                        ),
-                      ),
-                      Text(
-                        '$blue',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: context.nidoTextMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Slider Transparencia / Alpha
-                  Row(
-                    children: [
-                      const Text('💧', style: TextStyle(fontSize: 12)),
-                      Expanded(
-                        child: Slider(
-                          value: alpha,
-                          min: 0.1,
-                          max: 1.0,
-                          activeColor: kPrimaryColor,
-                          onChanged: (val) => setDialogState(() => alpha = val),
-                        ),
-                      ),
-                      Text(
-                        '${(alpha * 100).round()}%',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: context.nidoTextMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-
                   const SizedBox(height: 10),
-                  Text(
-                    'Colores rápidos:',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: context.nidoTextMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: presetColors.map((c) {
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() {
-                            red = c.r.toInt();
-                            green = c.g.toInt();
-                            blue = c.b.toInt();
-                            alpha = 1.0;
-                          });
-                        },
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: c,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: context.nidoBorder,
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                  NidoColorPicker(
+                    initialColor: currentColor,
+                    onColorChanged: (newColor) {
+                      setDialogState(() => currentColor = newColor);
+                    },
                   ),
                 ],
               ),
@@ -1063,6 +913,52 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                 color: textMuted,
               ),
               onTap: _gestionarCategorias,
+            ),
+            Divider(color: border, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.wallet_rounded,
+                  color: kPrimaryColor,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                'Mis Bolsillos 👛',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textDark,
+                ),
+              ),
+              subtitle: Text(
+                'Organiza y divide tu dinero en bolsillos específicos',
+                style: TextStyle(fontSize: 12, color: textMuted),
+              ),
+              trailing: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: textMuted,
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => PocketsScreen(
+                      coupleId: widget.coupleId,
+                      userName: widget.userName,
+                      mode: widget.mode,
+                    ),
+                  ),
+                );
+              },
             ),
             Divider(color: border, height: 1),
 

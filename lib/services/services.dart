@@ -35,6 +35,7 @@ class LocalGuestStorage {
   static const String _keyHistory = 'nido_guest_history';
   static const String _keyBudget = 'nido_guest_budget';
   static const String _keyCategories = 'nido_guest_categories';
+  static const String _keyPockets = 'nido_guest_pockets';
   static const String _keyCycleStart = 'nido_guest_cycle_start';
   static const String _keyThemeMode = 'nido_guest_theme_mode';
 
@@ -146,6 +147,19 @@ class LocalGuestStorage {
   static Future<void> saveCategories(List<Map<String, dynamic>> items) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCategories, jsonEncode(items));
+  }
+
+  static Future<List<Map<String, dynamic>>> getPockets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyPockets);
+    if (raw == null) return [];
+    final List decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> savePockets(List<Map<String, dynamic>> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyPockets, jsonEncode(items));
   }
 }
 

@@ -584,26 +584,62 @@ class ExpenseCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 6),
-
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: bg,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '📍 ${expense.sourceOrDestination}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: textMuted,
-                                  fontWeight: FontWeight.w600,
+                            if (expense.sourceOrDestination.isNotEmpty &&
+                                expense.sourceOrDestination != 'General' &&
+                                expense.sourceOrDestination != expense.pocketName) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '📍 ${expense.sourceOrDestination}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
+                            if (expense.pocketName != null &&
+                                expense.pocketName!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: kPrimaryColor.withValues(alpha: 0.28),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('👛', style: TextStyle(fontSize: 10)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      expense.pocketName!,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: kPrimaryColor,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
 
                             const Spacer(),
 

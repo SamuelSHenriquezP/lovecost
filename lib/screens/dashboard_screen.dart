@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
 import 'add_expense_bottom_sheet.dart';
+import 'pocket_detail_screen.dart';
+import 'pockets_screen.dart';
+import '../widgets/pocket_widgets.dart';
 
 // ==========================================
 // PANTALLA 1: DASHBOARD DE MOVIMIENTOS
@@ -33,24 +36,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _selectedCategoryFilter = 'all';
   bool _disponibleExpanded = true;
   bool _movimientosExpanded = true;
+  bool _bolsillosExpanded = true;
+
+  // Streams cacheados en estado para evitar re-suscripciones y lecturas innecesarias en Firebase
+  Stream<DocumentSnapshot>? _coupleStream;
+  Stream<List<Expense>>? _expensesStream;
+  Stream<List<CustomCategory>>? _categoriesStream;
+  Stream<List<Pocket>>? _pocketsStream;
+  DateTime? _cachedCycleStartDate;
 
   // ESTADO MODO INVITADO
   List<Expense> _guestExpenses = [];
   double _guestBudget = 2000.0;
   List<CustomCategory> _guestCategories = [];
+  List<Pocket> _guestPockets = [];
 
   @override
   void initState() {
     super.initState();
     if (widget.mode == NidoUsageMode.guest) {
       _loadGuestData();
+    } else {
+      _initStreams();
     }
+  }
+
+  void _initStreams() {
+    _coupleStream = FirebaseFirestore.instance
+        .collection('couples')
+        .doc(widget.coupleId)
+        .snapshots();
+    _categoriesStream = NidoRepository.instance.streamCategories(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+    );
+    _pocketsStream = NidoRepository.instance.streamPockets(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+    );
+    final now = DateTime.now();
+    _cachedCycleStartDate = DateTime(now.year, now.month, 1);
+    _expensesStream = NidoRepository.instance.streamExpenses(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+      cycleStartDate: _cachedCycleStartDate!,
+    );
   }
 
   Future<void> _loadGuestData() async {
     final rawExpenses = await LocalGuestStorage.getExpenses();
     final budget = await LocalGuestStorage.getBudget();
     final rawCats = await LocalGuestStorage.getCategories();
+    final rawPockets = await LocalGuestStorage.getPockets();
     final cycleStart = await LocalGuestStorage.getCycleStartDate();
 
     if (mounted) {
@@ -64,6 +101,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _guestCategories = rawCats
             .map((c) => CustomCategory.fromJson(c))
             .toList();
+        _guestPockets = rawPockets
+            .map((p) => Pocket.fromJson(p))
+            .toList();
       });
     }
   }
@@ -71,7 +111,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _openAddExpenseSheet({
     Expense? expenseToEdit,
     List<CustomCategory>? customCategories,
+    List<Pocket>? pockets,
+    String? initialType,
   }) {
+    // Si estamos filtrando por ingresos, abrir en ingreso; si por gastos, en gasto.
+    final defaultType = _filterType == 'income'
+        ? 'income'
+        : 'expense';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -80,6 +127,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         coupleId: widget.coupleId,
         userName: widget.userName,
         mode: widget.mode,
+        initialType: initialType ?? defaultType,
+        availablePockets: pockets ?? _guestPockets,
         expenseToEdit: expenseToEdit,
         onGuestRefresh: _loadGuestData,
         customCategories: customCategories ?? _guestCategories,
@@ -87,20 +136,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Stream<List<Expense>> _streamExpenses(DateTime cycleStartDate) {
-    return NidoRepository.instance.streamExpenses(
-      coupleId: widget.coupleId,
-      mode: widget.mode,
-      cycleStartDate: cycleStartDate,
+  void _openCreatePocketDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => PocketFormDialog(
+        onSave: (newPocket, initialDeposit) async {
+          // El monto asignado se aparta de la cuenta principal como initialAmount del bolsillo
+          final pocketToSave = newPocket.copyWith(
+            initialAmount: initialDeposit > 0 ? initialDeposit : 0.0,
+          );
+
+          await NidoRepository.instance.addPocket(
+            coupleId: widget.coupleId,
+            mode: widget.mode,
+            pocket: pocketToSave,
+          );
+
+          if (widget.mode == NidoUsageMode.guest) {
+            _loadGuestData();
+          }
+
+          if (mounted) {
+            HapticFeedback.mediumImpact();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✨ Bolsillo "${newPocket.name}" creado con éxito'),
+                backgroundColor: kSecondaryColor,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 
-  Stream<List<CustomCategory>> _streamCustomCategories() {
-    return NidoRepository.instance.streamCategories(
-      coupleId: widget.coupleId,
-      mode: widget.mode,
-    );
-  }
 
   void _showEditBudgetDialog(BuildContext context, double currentBudget) {
     final controller = TextEditingController(
@@ -177,16 +247,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         members: [widget.userId],
         allTransactions: _guestExpenses,
         customCats: _guestCategories,
+        pockets: _guestPockets,
       );
     }
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('couples')
-          .doc(widget.coupleId)
-          .snapshots(),
+      stream: _coupleStream,
       builder: (context, coupleSnapshot) {
-        if (coupleSnapshot.connectionState == ConnectionState.waiting) {
+        if (coupleSnapshot.connectionState == ConnectionState.waiting &&
+            !coupleSnapshot.hasData) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: kPrimaryColor),
@@ -208,21 +277,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
             cycleStartTimestamp?.toDate() ??
             DateTime(DateTime.now().year, DateTime.now().month, 1);
 
+        if (_cachedCycleStartDate != cycleStartDate) {
+          _cachedCycleStartDate = cycleStartDate;
+          _expensesStream = NidoRepository.instance.streamExpenses(
+            coupleId: widget.coupleId,
+            mode: widget.mode,
+            cycleStartDate: cycleStartDate,
+          );
+        }
+
         return StreamBuilder<List<Expense>>(
-          stream: _streamExpenses(cycleStartDate),
+          stream: _expensesStream,
           builder: (context, expensesSnapshot) {
             final allTransactions = expensesSnapshot.data ?? [];
 
             return StreamBuilder<List<CustomCategory>>(
-              stream: _streamCustomCategories(),
+              stream: _categoriesStream,
               builder: (context, customCatSnap) {
                 final customCats = customCatSnap.data ?? [];
-                return _buildDashboardBody(
-                  budgetLimit: budgetLimit,
-                  inviteCode: inviteCode,
-                  members: members,
-                  allTransactions: allTransactions,
-                  customCats: customCats,
+
+                return StreamBuilder<List<Pocket>>(
+                  stream: _pocketsStream,
+                  builder: (context, pocketSnap) {
+                    final pockets = pocketSnap.data ?? [];
+                    return _buildDashboardBody(
+                      budgetLimit: budgetLimit,
+                      inviteCode: inviteCode,
+                      members: members,
+                      allTransactions: allTransactions,
+                      customCats: customCats,
+                      pockets: pockets,
+                    );
+                  },
                 );
               },
             );
@@ -238,6 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required List<String> members,
     required List<Expense> allTransactions,
     required List<CustomCategory> customCats,
+    required List<Pocket> pockets,
   }) {
     final surface = context.nidoSurface;
     final border = context.nidoBorder;
@@ -255,7 +342,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    final disponibleReal = totalIngresos - totalGastos;
+    final saldoTotal = totalIngresos - totalGastos;
+
+    double totalEnBolsillos = 0;
+    for (final p in pockets) {
+      final m = calculatePocketMetrics(pocket: p, expenses: allTransactions);
+      totalEnBolsillos += m.available;
+    }
+
+    // Saldo libre en cuenta principal: lo que no está apartado en bolsillos
+    final disponibleLibre = saldoTotal - totalEnBolsillos;
+    final displayAvailable = pockets.isNotEmpty ? disponibleLibre : saldoTotal;
 
     final filtered = allTransactions.where((t) {
       if (_filterType == 'income' && !t.isIncome) return false;
@@ -369,9 +466,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             size: 16,
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            'Disponible Real',
-                            style: TextStyle(
+                          Text(
+                            pockets.isNotEmpty
+                                ? 'Disponible Libre'
+                                : 'Disponible Real',
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -428,7 +527,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   fit: BoxFit.scaleDown,
                                   alignment: Alignment.centerRight,
                                   child: SmoothCurrencyText(
-                                    value: disponibleReal,
+                                    value: displayAvailable,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
@@ -466,11 +565,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: SmoothCurrencyText(
-                                value: disponibleReal,
+                                value: displayAvailable,
                                 style: TextStyle(
                                   fontSize: 34,
                                   fontWeight: FontWeight.w900,
-                                  color: disponibleReal < 0
+                                  color: displayAvailable < 0
                                       ? const Color(0xFFFF8A80)
                                       : Colors.white,
                                   letterSpacing: -1.2,
@@ -478,6 +577,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                           ),
+                          if (pockets.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        '👛 En bolsillos: ',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      Text(
+                                        formatCurrency(totalEnBolsillos),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        '💰 Saldo total: ',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      Text(
+                                        formatCurrency(saldoTotal),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 16),
 
                           // ==========================================
@@ -620,6 +788,231 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
+          // ==========================================
+          // SECCIÓN DE BOLSILLOS (ESTILO BANCO)
+          // ==========================================
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          setState(
+                            () => _bolsillosExpanded = !_bolsillosExpanded,
+                          );
+                          HapticFeedback.selectionClick();
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: kPrimaryColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.wallet_rounded,
+                                size: 16,
+                                color: kPrimaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Bolsillos${pockets.isNotEmpty ? ' (${pockets.length})' : ''}',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: textDark,
+                              ),
+                            ),
+                            if (pockets.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  formatCurrency(totalEnBolsillos),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: kPrimaryColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 4),
+                            Icon(
+                              _bolsillosExpanded
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              color: textMuted,
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      if (pockets.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (ctx) => PocketsScreen(
+                                  coupleId: widget.coupleId,
+                                  userName: widget.userName,
+                                  mode: widget.mode,
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Ver todos',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: kPrimaryColor,
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          color: kPrimaryColor,
+                          size: 22,
+                        ),
+                        tooltip: 'Crear Bolsillo',
+                        onPressed: _openCreatePocketDialog,
+                      ),
+                    ],
+                  ),
+
+                  if (_bolsillosExpanded) ...[
+                    const SizedBox(height: 10),
+                    if (pockets.isEmpty)
+                      GestureDetector(
+                        onTap: _openCreatePocketDialog,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: border, width: 1.0),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: const Text('👛', style: TextStyle(fontSize: 20)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Divide tu dinero en bolsillos',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: textDark,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Separa para mercado, salidas, viajes o ahorros.',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.add_circle_rounded,
+                                color: kPrimaryColor,
+                                size: 24,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 205,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: pockets.length + 1,
+                          separatorBuilder: (_, _) => const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            if (index == pockets.length) {
+                              return NewPocketDashedCard(
+                                onTap: _openCreatePocketDialog,
+                                width: 140,
+                              );
+                            }
+
+                            final pocket = pockets[index];
+                            final metrics = calculatePocketMetrics(
+                              pocket: pocket,
+                              expenses: allTransactions,
+                            );
+
+                            return PocketCard(
+                              pocket: pocket,
+                              metrics: metrics,
+                              width: 180,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (ctx) => PocketDetailScreen(
+                                      initialPocket: pocket,
+                                      coupleId: widget.coupleId,
+                                      userName: widget.userName,
+                                      mode: widget.mode,
+                                      onRefresh: () {
+                                        if (widget.mode == NidoUsageMode.guest) {
+                                          _loadGuestData();
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -649,8 +1042,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const SizedBox(width: 4),
                             Icon(
                               _movimientosExpanded
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.keyboard_arrow_down_rounded,
+                                   ? Icons.keyboard_arrow_up_rounded
+                                   : Icons.keyboard_arrow_down_rounded,
                               color: textMuted,
                               size: 22,
                             ),
@@ -659,8 +1052,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const Spacer(),
                       ElevatedButton.icon(
-                        onPressed: () =>
-                            _openAddExpenseSheet(customCategories: customCats),
+                        onPressed: () => _openAddExpenseSheet(
+                          customCategories: customCats,
+                          pockets: pockets,
+                          initialType: _filterType == 'income' ? 'income' : 'expense',
+                        ),
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: const Text(
                           'Añadir',
@@ -830,6 +1226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             onEdit: () => _openAddExpenseSheet(
                               expenseToEdit: ex,
                               customCategories: customCats,
+                              pockets: pockets,
                             ),
                             onGuestRefresh: _loadGuestData,
                             customCategories: customCats,

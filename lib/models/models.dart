@@ -23,6 +23,9 @@ class Expense {
   final DateTime date;
   final Map<String, String> reactions;
 
+  final String? pocketId;
+  final String? pocketName;
+
   const Expense({
     required this.id,
     this.type = 'expense',
@@ -33,6 +36,8 @@ class Expense {
     required this.createdBy,
     required this.date,
     this.reactions = const {},
+    this.pocketId,
+    this.pocketName,
   });
 
   bool get isIncome => type == 'income';
@@ -55,6 +60,8 @@ class Expense {
       createdBy: (data['createdBy'] as String?) ?? '',
       date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       reactions: reactions,
+      pocketId: data['pocketId'] as String?,
+      pocketName: data['pocketName'] as String?,
     );
   }
 
@@ -75,6 +82,8 @@ class Expense {
       createdBy: (data['createdBy'] as String?) ?? 'Invitado',
       date: DateTime.tryParse(data['date'] as String? ?? '') ?? DateTime.now(),
       reactions: reactions,
+      pocketId: data['pocketId'] as String?,
+      pocketName: data['pocketName'] as String?,
     );
   }
 
@@ -88,7 +97,92 @@ class Expense {
     'createdBy': createdBy,
     'date': date.toIso8601String(),
     'reactions': reactions,
+    if (pocketId != null) 'pocketId': pocketId,
+    if (pocketName != null) 'pocketName': pocketName,
   };
+}
+
+class Pocket {
+  final String id;
+  final String name;
+  final String emoji;
+  final int colorHex;
+  final double targetAmount;
+  final double initialAmount;
+  final String createdBy;
+  final DateTime createdAt;
+
+  const Pocket({
+    required this.id,
+    required this.name,
+    this.emoji = '👛',
+    this.colorHex = 0xFF0D9488,
+    this.targetAmount = 0.0,
+    this.initialAmount = 0.0,
+    required this.createdBy,
+    required this.createdAt,
+  });
+
+  factory Pocket.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Pocket(
+      id: doc.id,
+      name: (data['name'] as String?) ?? 'Bolsillo',
+      emoji: (data['emoji'] as String?) ?? '👛',
+      colorHex: (data['colorHex'] as num?)?.toInt() ?? 0xFF0D9488,
+      targetAmount: ((data['targetAmount'] as num?) ?? 0.0).toDouble(),
+      initialAmount: ((data['initialAmount'] as num?) ?? 0.0).toDouble(),
+      createdBy: (data['createdBy'] as String?) ?? '',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  factory Pocket.fromJson(Map<String, dynamic> data) {
+    return Pocket(
+      id:
+          (data['id'] as String?) ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      name: (data['name'] as String?) ?? 'Bolsillo',
+      emoji: (data['emoji'] as String?) ?? '👛',
+      colorHex: (data['colorHex'] as num?)?.toInt() ?? 0xFF0D9488,
+      targetAmount: ((data['targetAmount'] as num?) ?? 0.0).toDouble(),
+      initialAmount: ((data['initialAmount'] as num?) ?? 0.0).toDouble(),
+      createdBy: (data['createdBy'] as String?) ?? '',
+      createdAt:
+          DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'emoji': emoji,
+    'colorHex': colorHex,
+    'targetAmount': targetAmount,
+    'initialAmount': initialAmount,
+    'createdBy': createdBy,
+    'createdAt': createdAt.toIso8601String(),
+  };
+
+  Pocket copyWith({
+    String? name,
+    String? emoji,
+    int? colorHex,
+    double? targetAmount,
+    double? initialAmount,
+  }) {
+    return Pocket(
+      id: id,
+      name: name ?? this.name,
+      emoji: emoji ?? this.emoji,
+      colorHex: colorHex ?? this.colorHex,
+      targetAmount: targetAmount ?? this.targetAmount,
+      initialAmount: initialAmount ?? this.initialAmount,
+      createdBy: createdBy,
+      createdAt: createdAt,
+    );
+  }
 }
 
 class CustomCategory {
