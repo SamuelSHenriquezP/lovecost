@@ -40,10 +40,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Streams cacheados en estado para evitar re-suscripciones y lecturas innecesarias en Firebase
   Stream<DocumentSnapshot>? _coupleStream;
-  Stream<List<Expense>>? _expensesStream;
   Stream<List<CustomCategory>>? _categoriesStream;
   Stream<List<Pocket>>? _pocketsStream;
-  DateTime? _cachedCycleStartDate;
 
   // ESTADO MODO INVITADO
   List<Expense> _guestExpenses = [];
@@ -73,13 +71,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _pocketsStream = NidoRepository.instance.streamPockets(
       coupleId: widget.coupleId,
       mode: widget.mode,
-    );
-    final now = DateTime.now();
-    _cachedCycleStartDate = DateTime(now.year, now.month, 1);
-    _expensesStream = NidoRepository.instance.streamExpenses(
-      coupleId: widget.coupleId,
-      mode: widget.mode,
-      cycleStartDate: _cachedCycleStartDate!,
     );
   }
 
@@ -276,18 +267,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final cycleStartDate =
             cycleStartTimestamp?.toDate() ??
             DateTime(DateTime.now().year, DateTime.now().month, 1);
+        final isOffline = coupleSnapshot.data?.metadata.isFromCache ?? false;
 
-        if (_cachedCycleStartDate != cycleStartDate) {
-          _cachedCycleStartDate = cycleStartDate;
-          _expensesStream = NidoRepository.instance.streamExpenses(
+        return StreamBuilder<List<Expense>>(
+          key: ValueKey(
+            'expenses_${widget.coupleId}_${cycleStartDate.millisecondsSinceEpoch}',
+          ),
+          stream: NidoRepository.instance.streamExpenses(
             coupleId: widget.coupleId,
             mode: widget.mode,
             cycleStartDate: cycleStartDate,
-          );
-        }
-
-        return StreamBuilder<List<Expense>>(
-          stream: _expensesStream,
+          ),
           builder: (context, expensesSnapshot) {
             final allTransactions = expensesSnapshot.data ?? [];
 
@@ -307,6 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       allTransactions: allTransactions,
                       customCats: customCats,
                       pockets: pockets,
+                      isOffline: isOffline,
                     );
                   },
                 );
@@ -325,6 +316,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required List<Expense> allTransactions,
     required List<CustomCategory> customCats,
     required List<Pocket> pockets,
+    bool isOffline = false,
   }) {
     final surface = context.nidoSurface;
     final border = context.nidoBorder;
@@ -403,6 +395,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: CustomScrollView(
         slivers: [
+          if (isOffline)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF64748B).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF64748B).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 16,
+                        color: Color(0xFF64748B),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Modo sin conexión · Cambios guardados localmente',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -567,12 +598,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: SmoothCurrencyText(
                                 value: displayAvailable,
                                 style: TextStyle(
-                                  fontSize: 34,
+                                  fontSize: 30,
                                   fontWeight: FontWeight.w900,
                                   color: displayAvailable < 0
                                       ? const Color(0xFFFF8A80)
                                       : Colors.white,
-                                  letterSpacing: -1.2,
+                                  letterSpacing: -0.8,
                                 ),
                               ),
                             ),
@@ -649,7 +680,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 16),
 
                           // ==========================================
-                          // TARJETAS DE MÉTRICAS (INGRESOS, GASTOS, META)
+                          // TARJETAS DE MÉTRICAS (INGRESOS, GASTOS)
                           // Con ajuste automático FittedBox para evitar sobreposición
                           // ==========================================
                           Row(
@@ -658,8 +689,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 10,
+                                    horizontal: 12,
+                                    vertical: 11,
                                   ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.12),
@@ -678,13 +709,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             size: 14,
                                             color: Color(0xFF6EE7B7),
                                           ),
-                                          SizedBox(width: 3),
+                                          SizedBox(width: 4),
                                           Expanded(
                                             child: Text(
                                               'Ingresos (+)',
                                               style: TextStyle(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
                                                 color: Colors.white,
                                               ),
                                               overflow: TextOverflow.ellipsis,
@@ -693,7 +724,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 5),
+                                      const SizedBox(height: 6),
                                       SizedBox(
                                         width: double.infinity,
                                         child: FittedBox(
@@ -702,7 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           child: Text(
                                             formatCurrency(totalIngresos),
                                             style: const TextStyle(
-                                              fontSize: 14.5,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.w800,
                                               color: Colors.white,
                                             ),
@@ -714,14 +745,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
 
                               // Tarjeta Gastos
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 10,
+                                    horizontal: 12,
+                                    vertical: 11,
                                   ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.12),
@@ -740,13 +771,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             size: 14,
                                             color: Color(0xFFFCA5A5),
                                           ),
-                                          SizedBox(width: 3),
+                                          SizedBox(width: 4),
                                           Expanded(
                                             child: Text(
                                               'Gastos (-)',
                                               style: TextStyle(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
                                                 color: Colors.white,
                                               ),
                                               overflow: TextOverflow.ellipsis,
@@ -755,7 +786,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 5),
+                                      const SizedBox(height: 6),
                                       SizedBox(
                                         width: double.infinity,
                                         child: FittedBox(
@@ -764,7 +795,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           child: Text(
                                             formatCurrency(totalGastos),
                                             style: const TextStyle(
-                                              fontSize: 14.5,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.w800,
                                               color: Colors.white,
                                             ),
@@ -811,10 +842,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              width: 32,
+                              height: 32,
                               decoration: BoxDecoration(
                                 color: kPrimaryColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
                                 Icons.wallet_rounded,
@@ -822,11 +854,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 color: kPrimaryColor,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Text(
-                              'Bolsillos${pockets.isNotEmpty ? ' (${pockets.length})' : ''}',
+                              'Bolsillos',
                               style: TextStyle(
-                                fontSize: 17,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: textDark,
                               ),
@@ -836,7 +868,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 7,
-                                  vertical: 2,
+                                  vertical: 2.5,
                                 ),
                                 decoration: BoxDecoration(
                                   color: kPrimaryColor.withValues(alpha: 0.12),
@@ -858,7 +890,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ? Icons.keyboard_arrow_up_rounded
                                   : Icons.keyboard_arrow_down_rounded,
                               color: textMuted,
-                              size: 22,
+                              size: 20,
                             ),
                           ],
                         ),
@@ -1022,7 +1054,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     children: [
                       InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         onTap: () {
                           setState(
                             () => _movimientosExpanded = !_movimientosExpanded,
@@ -1030,22 +1062,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           HapticFeedback.selectionClick();
                         },
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: kSecondaryColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.receipt_long_rounded,
+                                size: 16,
+                                color: kSecondaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
                             Text(
-                              'Movimientos${filtered.isNotEmpty ? ' (${filtered.length})' : ''}',
+                              'Movimientos',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: textDark,
                               ),
                             ),
+                            if (filtered.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: textMuted.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${filtered.length}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: textDark,
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 4),
                             Icon(
                               _movimientosExpanded
-                                   ? Icons.keyboard_arrow_up_rounded
-                                   : Icons.keyboard_arrow_down_rounded,
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
                               color: textMuted,
-                              size: 22,
+                              size: 20,
                             ),
                           ],
                         ),
@@ -1057,24 +1125,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           pockets: pockets,
                           initialType: _filterType == 'income' ? 'income' : 'expense',
                         ),
-                        icon: const Icon(Icons.add_rounded, size: 18),
+                        icon: const Icon(Icons.add_rounded, size: 16),
                         label: const Text(
                           'Añadir',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 12.5,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: kPrimaryColor,
                           foregroundColor: Colors.white,
                           elevation: 0,
+                          minimumSize: const Size(0, 34),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
+                            horizontal: 12,
+                            vertical: 7,
                           ),
                         ),
                       ),

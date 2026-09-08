@@ -303,13 +303,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(8),
               child: Image.asset(
                 'assets/images/nido_icon.png',
-                width: 26,
-                height: 26,
+                width: 28,
+                height: 28,
                 errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.favorite, color: kPrimaryColor, size: 22),
+                    const Icon(Icons.favorite, color: kPrimaryColor, size: 24),
               ),
             ),
             const SizedBox(width: 8),
@@ -353,17 +353,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.insights_rounded,
-                        size: 20,
-                        color: kPrimaryColor,
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: kPrimaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.insights_rounded,
+                          size: 16,
+                          color: kPrimaryColor,
+                        ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Text(
                         'Balance Financiero',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                           color: textDark,
                         ),
                       ),
@@ -392,47 +400,36 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Mosaicos de Métricas
-                  Row(
-                    children: [
-                      _buildMetricTile(
-                        label: 'Ingresos',
-                        value: formatCurrency(totalIngresos),
-                        color: kIncomeColor,
-                        textMuted: textMuted,
-                        bg: bg,
-                        border: border,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildMetricTile(
-                        label: 'Gastos',
-                        value: formatCurrency(totalGastos),
-                        color: kExpenseColor,
-                        textMuted: textMuted,
-                        bg: bg,
-                        border: border,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildMetricTile(
-                        label: 'Balance',
-                        value: formatCurrency(ahorroNeto),
-                        color:
-                            ahorroNeto >= 0 ? kDisponibleColor : kExpenseColor,
-                        textMuted: textMuted,
-                        bg: bg,
-                        border: border,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Gráfica Interactiva Estilo Mercado de Acciones
+                  // Gráfica Interactiva Estilo Mercado de Acciones con Métricas Simétricas Integradas
                   StockLineChart(
                     points: stockPoints,
                     title: 'Balance Neto Acumulado',
                     currencyFormatter: formatCurrency,
                     positiveColor: const Color(0xFF10B981),
                     negativeColor: const Color(0xFFEF4444),
+                    belowHeader: Row(
+                      children: [
+                        _buildMetricTile(
+                          label: 'Ingresos (+)',
+                          value: formatCurrency(totalIngresos),
+                          color: kIncomeColor,
+                          icon: Icons.arrow_upward_rounded,
+                          textMuted: textMuted,
+                          bg: bg,
+                          border: border,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildMetricTile(
+                          label: 'Gastos (-)',
+                          value: formatCurrency(totalGastos),
+                          color: kExpenseColor,
+                          icon: Icons.arrow_downward_rounded,
+                          textMuted: textMuted,
+                          bg: bg,
+                          border: border,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -455,17 +452,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.pie_chart_outline_rounded,
-                        size: 20,
-                        color: kPrimaryColor,
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: kPrimaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.pie_chart_rounded,
+                          size: 16,
+                          color: kPrimaryColor,
+                        ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Text(
                         'Distribución de Gastos',
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                           color: textDark,
                         ),
                       ),
@@ -563,17 +568,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.group_outlined,
-                        size: 20,
-                        color: kSecondaryColor,
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: kSecondaryColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.group_rounded,
+                          size: 16,
+                          color: kSecondaryColor,
+                        ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Text(
                         'Aportantes al Fondo',
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                           color: textDark,
                         ),
                       ),
@@ -735,39 +748,56 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget _buildDateRangeBadge(BuildContext context) {
     final textMuted = context.nidoTextMuted;
     final textDark = context.nidoTextDark;
+    final surface = context.nidoSurface;
+    final border = context.nidoBorder;
     final dateFormat = DateFormat('d MMM y', 'es');
     final startStr = dateFormat.format(_startDate);
     final endStr = dateFormat.format(_endDate);
     final days = _endDate.difference(_startDate).inDays + 1;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.only(top: 2, bottom: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.calendar_today_rounded, size: 13, color: textMuted),
-          const SizedBox(width: 6),
-          Text(
-            '$startStr — $endStr',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.bold,
-              color: textDark,
-            ),
-          ),
-          const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
             decoration: BoxDecoration(
-              color: kPrimaryColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
+              color: surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: border, width: 1.0),
             ),
-            child: Text(
-              '$days ${days == 1 ? 'día' : 'días'}',
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: kPrimaryColor,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.calendar_today_rounded, size: 12, color: textMuted),
+                const SizedBox(width: 6),
+                Text(
+                  '$startStr — $endStr',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: textDark,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: kPrimaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$days ${days == 1 ? 'día' : 'días'}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: kPrimaryColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -779,30 +809,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     required String label,
     required String value,
     required Color color,
+    required IconData icon,
     required Color textMuted,
     required Color bg,
     required Color border,
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: border, width: 1.0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: textMuted,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: textMuted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             SizedBox(
@@ -813,7 +852,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 child: Text(
                   value,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: color,
                   ),

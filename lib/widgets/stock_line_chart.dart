@@ -31,6 +31,7 @@ class StockLineChart extends StatefulWidget {
   final String Function(double) currencyFormatter;
   final Color? positiveColor;
   final Color? negativeColor;
+  final Widget? belowHeader;
 
   const StockLineChart({
     super.key,
@@ -40,6 +41,7 @@ class StockLineChart extends StatefulWidget {
     required this.currencyFormatter,
     this.positiveColor,
     this.negativeColor,
+    this.belowHeader,
   });
 
   @override
@@ -207,7 +209,7 @@ class _StockLineChartState extends State<StockLineChart>
                     child: Text(
                       widget.currencyFormatter(activePoint.value),
                       style: TextStyle(
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.w900,
                         color: activePoint.value < 0 ? negColor : textDark,
                         letterSpacing: -0.8,
@@ -218,7 +220,7 @@ class _StockLineChartState extends State<StockLineChart>
                   Text(
                     formattedDate,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 11.5,
                       color: textMuted,
                       fontWeight: FontWeight.w500,
                     ),
@@ -235,7 +237,7 @@ class _StockLineChartState extends State<StockLineChart>
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: (deltaFromStart >= 0 ? posColor : negColor)
-                      .withValues(alpha: 0.25),
+                       .withValues(alpha: 0.25),
                   width: 1,
                 ),
               ),
@@ -263,6 +265,10 @@ class _StockLineChartState extends State<StockLineChart>
             ),
           ],
         ),
+        if (widget.belowHeader != null) ...[
+          const SizedBox(height: 16),
+          widget.belowHeader!,
+        ],
         const SizedBox(height: 14),
 
         // Lienzo táctil del gráfico de acciones

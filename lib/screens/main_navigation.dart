@@ -244,6 +244,116 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
     HapticFeedback.lightImpact();
   }
 
+  Future<void> _cerrarSesion() async {
+    Navigator.pop(context);
+    if (widget.mode == NidoUsageMode.guest) {
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+          (route) => false,
+        );
+      }
+    } else {
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  Future<void> _eliminarCuenta() async {
+    final isGuest = widget.mode == NidoUsageMode.guest;
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ctx.nidoSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: kDangerColor, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              isGuest ? '¿Borrar datos locales?' : '¿Eliminar cuenta?',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: ctx.nidoTextDark,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          isGuest
+              ? 'Se borrarán de forma irreversible todos tus gastos, bolsillos y ahorros guardados en este dispositivo.'
+              : 'Esta acción es irreversible. Se eliminará tu usuario y el acceso a tus datos personales.',
+          style: TextStyle(fontSize: 13, color: ctx.nidoTextMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kDangerColor,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(isGuest ? 'Borrar Todo' : 'Eliminar Cuenta'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      if (isGuest) {
+        await LocalGuestStorage.saveExpenses([]);
+        await LocalGuestStorage.saveShoppingList([]);
+        await LocalGuestStorage.saveSavings([]);
+        await LocalGuestStorage.saveHistory([]);
+        await LocalGuestStorage.savePockets([]);
+        await LocalGuestStorage.saveCategories([]);
+      } else {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          try {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(widget.userId)
+                .delete();
+          } catch (_) {}
+          await user.delete();
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final message = e is FirebaseAuthException && e.code == 'requires-recent-login'
+            ? 'Por seguridad, debes volver a iniciar sesión antes de eliminar tu cuenta.'
+            : 'Error al eliminar: ${e.toString()}';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: kDangerColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _cerrarPeriodoYArchivar() async {
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -1086,7 +1196,7 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                 );
               },
             ),
-            Divider(color: border, height: 1),
+             Divider(color: border, height: 1),
 
             ListTile(
               leading: Container(
@@ -1101,20 +1211,43 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                   size: 20,
                 ),
               ),
-              title: const Text(
-                'Cerrar Sesión',
-                style: TextStyle(
+              title: Text(
+                widget.mode == NidoUsageMode.guest
+                    ? 'Salir de Modo Invitado'
+                    : 'Cerrar Sesión',
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                   color: kDangerColor,
                 ),
               ),
-              onTap: () async {
-                Navigator.pop(context);
-                if (widget.mode == NidoUsageMode.couple) {
-                  await FirebaseAuth.instance.signOut();
-                }
-              },
+              onTap: _cerrarSesion,
+            ),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.delete_forever_outlined,
+                  color: Colors.grey,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                widget.mode == NidoUsageMode.guest
+                    ? 'Borrar datos locales'
+                    : 'Eliminar cuenta y datos',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
+              ),
+              onTap: _eliminarCuenta,
             ),
           ],
         ),

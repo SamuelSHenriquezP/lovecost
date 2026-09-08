@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'core/theme.dart';
+import 'services/services.dart';
 import 'screens/auth_gate.dart';
 import 'services/notification_service.dart';
 
@@ -51,6 +52,14 @@ void main() async {
 
     await NotificationService.instance.initialize();
     await NotificationService.instance.requestPermissions();
+
+    // Cargar preferencia persistida de Modo Oscuro
+    try {
+      final savedTheme = await LocalGuestStorage.getThemeMode();
+      nidoThemeMode.value = savedTheme;
+    } catch (e) {
+      debugPrint('Aviso: No se pudo cargar tema guardado: $e');
+    }
   } catch (e) {
     initError = e;
   }
@@ -103,18 +112,6 @@ void main() async {
 // ==========================================
 // APP PRINCIPAL
 // ==========================================
-// ==========================================
-// DARK MODE NOTIFIER
-// ==========================================
-final ValueNotifier<ThemeMode> nidoThemeMode = ValueNotifier(ThemeMode.light);
-
-// Dark palette constants
-const Color kDarkBackground = Color(0xFF0F172A);
-const Color kDarkSurface = Color(0xFF1E293B);
-const Color kDarkBorder = Color(0xFF334155);
-const Color kDarkTextDark = Color(0xFFF1F5F9);
-const Color kDarkTextMuted = Color(0xFF94A3B8);
-
 class NidoApp extends StatelessWidget {
   const NidoApp({super.key});
 

@@ -94,6 +94,44 @@ class NidoRepository {
     }
   }
 
+  /// Updates an existing expense or income.
+  Future<void> updateExpense({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required Expense expense,
+  }) async {
+    if (mode == NidoUsageMode.guest) {
+      final list = await LocalGuestStorage.getExpenses();
+      final idx = list.indexWhere((item) => item['id'] == expense.id);
+      if (idx != -1) {
+        list[idx] = expense.toJson();
+        await LocalGuestStorage.saveExpenses(list);
+      }
+    } else {
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .collection('expenses')
+          .doc(expense.id)
+          .update({
+            'type': expense.type,
+            'amount': expense.amount,
+            'description': expense.description,
+            'category': expense.category,
+            'sourceOrDestination': expense.sourceOrDestination,
+            'createdBy': expense.createdBy,
+            'date': Timestamp.fromDate(expense.date),
+            'reactions': expense.reactions,
+            if (expense.pocketId != null) 'pocketId': expense.pocketId,
+            if (expense.pocketName != null) 'pocketName': expense.pocketName,
+          })
+          .timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () {},
+          );
+    }
+  }
+
   /// Deletes an expense by ID.
   Future<void> deleteExpense({
     required String coupleId,

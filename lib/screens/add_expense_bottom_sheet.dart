@@ -186,78 +186,39 @@ class _AddExpenseBottomSheetState extends State<AddExpenseBottomSheet> {
 
     setState(() => _isSaving = true);
     try {
-      if (widget.mode == NidoUsageMode.guest) {
-        final list = await LocalGuestStorage.getExpenses();
-        final exp = Expense(
-          id:
-              widget.expenseToEdit?.id ??
-              DateTime.now().millisecondsSinceEpoch.toString(),
-          type: _transactionType,
-          amount: amount,
-          description: _descriptionController.text.trim(),
-          category: _selectedCategory,
-          sourceOrDestination: _sourceController.text.trim().isEmpty
-              ? (_selectedPocketName != null ? _selectedPocketName! : 'General')
-              : _sourceController.text.trim(),
-          createdBy: widget.userName,
-          date: widget.expenseToEdit?.date ?? DateTime.now(),
-          pocketId: _selectedPocketId,
-          pocketName: _selectedPocketName,
+      final exp = Expense(
+        id: widget.expenseToEdit?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        type: _transactionType,
+        amount: amount,
+        description: _descriptionController.text.trim(),
+        category: _selectedCategory,
+        sourceOrDestination: _sourceController.text.trim().isEmpty
+            ? (_selectedPocketName != null ? _selectedPocketName! : 'General')
+            : _sourceController.text.trim(),
+        createdBy: widget.userName,
+        date: widget.expenseToEdit?.date ?? DateTime.now(),
+        reactions: widget.expenseToEdit?.reactions ?? const {},
+        pocketId: _selectedPocketId,
+        pocketName: _selectedPocketName,
+      );
+
+      if (widget.expenseToEdit != null) {
+        await NidoRepository.instance.updateExpense(
+          coupleId: widget.coupleId,
+          mode: widget.mode,
+          expense: exp,
         );
-
-        if (widget.expenseToEdit != null) {
-          final idx = list.indexWhere(
-            (i) => i['id'] == widget.expenseToEdit!.id,
-          );
-          if (idx != -1) list[idx] = exp.toJson();
-        } else {
-          list.add(exp.toJson());
-        }
-        await LocalGuestStorage.saveExpenses(list);
-        if (widget.onGuestRefresh != null) widget.onGuestRefresh!();
       } else {
-        final collectionRef = FirebaseFirestore.instance
-            .collection('couples')
-            .doc(widget.coupleId)
-            .collection('expenses');
+        await NidoRepository.instance.addExpense(
+          coupleId: widget.coupleId,
+          mode: widget.mode,
+          expense: exp,
+        );
+      }
 
-        final data = {
-          'type': _transactionType,
-          'amount': amount,
-          'description': _descriptionController.text.trim(),
-          'category': _selectedCategory,
-          'sourceOrDestination': _sourceController.text.trim().isEmpty
-              ? (_selectedPocketName != null ? _selectedPocketName! : 'General')
-              : _sourceController.text.trim(),
-          'createdBy': widget.userName,
-          'date': widget.expenseToEdit != null
-              ? Timestamp.fromDate(widget.expenseToEdit!.date)
-              : Timestamp.now(),
-          if (_selectedPocketId != null) 'pocketId': _selectedPocketId,
-          if (_selectedPocketName != null) 'pocketName': _selectedPocketName,
-        };
-
-        if (widget.expenseToEdit != null) {
-          await collectionRef
-              .doc(widget.expenseToEdit!.id)
-              .update(data)
-              .timeout(
-                const Duration(milliseconds: 1200),
-                onTimeout: () {
-                  // Firestore local cache handles persistence; proceed optimistically
-                },
-              );
-        } else {
-          final docRef = collectionRef.doc();
-          await docRef
-              .set(data)
-              .timeout(
-                const Duration(milliseconds: 1200),
-                onTimeout: () {
-                  // Firestore local cache handles persistence; proceed optimistically
-                },
-              );
-        }
+      if (widget.mode == NidoUsageMode.guest && widget.onGuestRefresh != null) {
+        widget.onGuestRefresh!();
       }
 
       if (mounted) {
