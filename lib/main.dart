@@ -7,7 +7,6 @@ import 'firebase_options.dart';
 import 'core/theme.dart';
 import 'services/services.dart';
 import 'screens/auth_gate.dart';
-import 'services/notification_service.dart';
 
 export 'core/theme.dart';
 export 'models/models.dart';

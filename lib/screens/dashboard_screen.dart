@@ -59,6 +59,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.mode == NidoUsageMode.guest) {
+      _loadGuestData();
+    }
+  }
+
   void _initStreams() {
     _coupleStream = FirebaseFirestore.instance
         .collection('couples')

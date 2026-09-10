@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../models/models.dart';
 import 'services.dart';
 
@@ -7,7 +8,8 @@ class NidoRepository {
   NidoRepository._internal();
   static final NidoRepository instance = NidoRepository._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? _firestoreInstance;
+  FirebaseFirestore get _firestore => _firestoreInstance ??= FirebaseFirestore.instance;
 
   // ==========================================
   // EXPENSES / MOVIMIENTOS
@@ -358,4 +360,193 @@ class NidoRepository {
           );
     }
   }
+
+  // ==========================================
+  // CICLO Y ARCHIVADO DE PERIODOS
+  // ==========================================
+
+  /// Obtiene la fecha de inicio del ciclo activo actual.
+  Future<DateTime> getCycleStartDate({
+    required String coupleId,
+    required NidoUsageMode mode,
+  }) async {
+    if (mode == NidoUsageMode.guest) {
+      return await LocalGuestStorage.getCycleStartDate();
+    }
+
+    try {
+      final doc = await _firestore.collection('couples').doc(coupleId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final timestamp = data['cycle_start_date'] as Timestamp?;
+        if (timestamp != null) {
+          return timestamp.toDate();
+        }
+        final resetDay = (data['resetDay'] as num?)?.toInt() ?? 1;
+        final now = DateTime.now();
+        if (now.day >= resetDay) {
+          return DateTime(now.year, now.month, resetDay);
+        } else {
+          final prevMonth = DateTime(now.year, now.month - 1, 1);
+          final daysInPrevMonth = DateTime(now.year, now.month, 0).day;
+          final safeDay = resetDay > daysInPrevMonth ? daysInPrevMonth : resetDay;
+          return DateTime(prevMonth.year, prevMonth.month, safeDay);
+        }
+      }
+    } catch (_) {}
+
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
+  }
+
+  /// Consulta todos los gastos e ingresos registrados estrictamente en el ciclo indicado.
+  Future<List<Expense>> getCycleExpenses({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required DateTime cycleStartDate,
+    DateTime? cycleEndDate,
+  }) async {
+    final end = cycleEndDate ?? DateTime.now();
+    if (mode == NidoUsageMode.guest) {
+      final raw = await LocalGuestStorage.getExpenses();
+      final parsed = raw.map((e) => Expense.fromJson(e)).toList();
+      return parsed.where((e) {
+        if (e.date.isBefore(cycleStartDate)) return false;
+        if (e.date.isAfter(end)) return false;
+        return true;
+      }).toList();
+    }
+
+    final snapshot = await _firestore
+        .collection('couples')
+        .doc(coupleId)
+        .collection('expenses')
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(cycleStartDate))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .get();
+
+    return snapshot.docs.map((doc) => Expense.fromFirestore(doc)).toList();
+  }
+
+  /// Archiva el periodo activo actual en el histórico y reinicia el saldo a $0 iniciando un nuevo ciclo.
+  Future<HistoryPeriod> archiveCurrentPeriodAndReset({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required String userName,
+    required String resetMode,
+  }) async {
+    final now = DateTime.now();
+    final cycleStartDate = await getCycleStartDate(coupleId: coupleId, mode: mode);
+
+    final expenses = await getCycleExpenses(
+      coupleId: coupleId,
+      mode: mode,
+      cycleStartDate: cycleStartDate,
+      cycleEndDate: now,
+    );
+
+    double totalIncome = 0.0;
+    double totalExpense = 0.0;
+    for (final e in expenses) {
+      if (e.isIncome) {
+        totalIncome += e.amount;
+      } else {
+        totalExpense += e.amount;
+      }
+    }
+    final balance = totalIncome - totalExpense;
+
+    String periodTitle;
+    if (resetMode == 'biweekly') {
+      periodTitle = 'Quincena (${DateFormat('d MMM', 'es').format(cycleStartDate)} - ${DateFormat('d MMM yyyy', 'es').format(now)})';
+    } else {
+      if (cycleStartDate.month == now.month && cycleStartDate.year == now.year) {
+        periodTitle = DateFormat('MMMM yyyy', 'es').format(cycleStartDate).capitalize();
+      } else {
+        periodTitle = '${DateFormat('d MMM', 'es').format(cycleStartDate)} - ${DateFormat('d MMM yyyy', 'es').format(now)}';
+      }
+    }
+
+    final period = HistoryPeriod(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: periodTitle,
+      startDate: cycleStartDate,
+      endDate: now,
+      totalIncome: totalIncome,
+      totalExpense: totalExpense,
+      balance: balance,
+      closedBy: userName,
+      createdAt: now,
+    );
+
+    if (mode == NidoUsageMode.guest) {
+      final historyList = await LocalGuestStorage.getHistory();
+      historyList.add(period.toJson());
+      await LocalGuestStorage.saveHistory(historyList);
+      await LocalGuestStorage.setCycleStartDate(now);
+    } else {
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .collection('history_periods')
+          .add({
+            'title': period.title,
+            'startDate': Timestamp.fromDate(period.startDate),
+            'endDate': Timestamp.fromDate(period.endDate),
+            'totalIncome': period.totalIncome,
+            'totalExpense': period.totalExpense,
+            'balance': period.balance,
+            'closedBy': period.closedBy,
+            'createdAt': Timestamp.fromDate(period.createdAt),
+          });
+
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .set({
+            'cycle_start_date': Timestamp.fromDate(now),
+          }, SetOptions(merge: true));
+    }
+
+    return period;
+  }
+
+  /// Reinicia el ciclo activo a $0 sin archivar nada en el histórico.
+  Future<void> resetCycleWithoutArchiving({
+    required String coupleId,
+    required NidoUsageMode mode,
+  }) async {
+    final now = DateTime.now();
+    if (mode == NidoUsageMode.guest) {
+      await LocalGuestStorage.setCycleStartDate(now);
+    } else {
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .set({
+            'cycle_start_date': Timestamp.fromDate(now),
+          }, SetOptions(merge: true));
+    }
+  }
+
+  /// Elimina un periodo archivado del histórico.
+  Future<void> deleteHistoryPeriod({
+    required String coupleId,
+    required NidoUsageMode mode,
+    required String periodId,
+  }) async {
+    if (mode == NidoUsageMode.guest) {
+      final list = await LocalGuestStorage.getHistory();
+      list.removeWhere((p) => p['id'] == periodId);
+      await LocalGuestStorage.saveHistory(list);
+    } else {
+      await _firestore
+          .collection('couples')
+          .doc(coupleId)
+          .collection('history_periods')
+          .doc(periodId)
+          .delete();
+    }
+  }
 }
+

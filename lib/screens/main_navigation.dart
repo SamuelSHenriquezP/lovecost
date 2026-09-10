@@ -100,8 +100,10 @@ class _MainNavigationState extends State<MainNavigation> {
         });
   }
 
-  void _openOptionsMenu() {
-    showModalBottomSheet(
+  int _dashboardRefreshKey = 0;
+
+  void _openOptionsMenu() async {
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -115,12 +117,19 @@ class _MainNavigationState extends State<MainNavigation> {
         mode: widget.mode,
       ),
     );
+
+    if (result == true && mounted) {
+      setState(() {
+        _dashboardRefreshKey++;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
       DashboardScreen(
+        key: ValueKey('dashboard_$_dashboardRefreshKey'),
         coupleId: widget.coupleId,
         userId: widget.userId,
         userName: widget.userName,
@@ -355,126 +364,284 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
   }
 
   Future<void> _cerrarPeriodoYArchivar() async {
+    final cycleStart = await NidoRepository.instance.getCycleStartDate(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+    );
+    final now = DateTime.now();
+
+    final expenses = await NidoRepository.instance.getCycleExpenses(
+      coupleId: widget.coupleId,
+      mode: widget.mode,
+      cycleStartDate: cycleStart,
+      cycleEndDate: now,
+    );
+
+    double totalIncome = 0.0;
+    double totalExpense = 0.0;
+    for (final e in expenses) {
+      if (e.isIncome) {
+        totalIncome += e.amount;
+      } else {
+        totalExpense += e.amount;
+      }
+    }
+    final balance = totalIncome - totalExpense;
+
+    if (!mounted) return;
+
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('¿Cerrar y archivar periodo actual?'),
-        content: const Text(
-          'Esto guardará un resumen completo de los gastos e ingresos actuales en el Histórico de Periodos de Nido.',
+        backgroundColor: ctx.nidoSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: kPrimaryColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.inventory_2_outlined, color: kPrimaryColor, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Archivar Periodo y Empezar de Cero',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: ctx.nidoTextDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Se guardará un resumen de tus ingresos y gastos en el Histórico de Periodos y el saldo actual volverá a \$0.00 para comenzar un nuevo ciclo.',
+              style: TextStyle(fontSize: 13, color: ctx.nidoTextMuted),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: ctx.nidoBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: ctx.nidoBorder, width: 1.2),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Periodo:', style: TextStyle(fontSize: 12, color: ctx.nidoTextMuted)),
+                      Text(
+                        '${DateFormat('d MMM', 'es').format(cycleStart)} - ${DateFormat('d MMM yyyy', 'es').format(now)}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ctx.nidoTextDark),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Ingresos:', style: TextStyle(fontSize: 12, color: ctx.nidoTextMuted)),
+                      Text(
+                        '+${formatCurrency(totalIncome)}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kIncomeColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Gastos:', style: TextStyle(fontSize: 12, color: ctx.nidoTextMuted)),
+                      Text(
+                        '-${formatCurrency(totalExpense)}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kExpenseColor),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Balance final:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: ctx.nidoTextDark)),
+                      Text(
+                        formatCurrency(balance),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: balance >= 0 ? kIncomeColor : kExpenseColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (expenses.isEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Colors.amber),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'No hay movimientos registrados en este ciclo.',
+                      style: TextStyle(fontSize: 11, color: ctx.nidoTextMuted),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: ctx.nidoTextMuted)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimaryColor,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Archivar Periodo'),
+            child: const Text('Archivar y Reiniciar'),
           ),
         ],
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: context.nidoSurface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: kPrimaryColor),
+              SizedBox(height: 16),
+              Text('Archivando periodo...', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
 
     try {
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-
-      double totalIncome = 0;
-      double totalExpense = 0;
-
-      if (widget.mode == NidoUsageMode.guest) {
-        final list = await LocalGuestStorage.getExpenses();
-        for (var item in list) {
-          final isInc = item['type'] == 'income';
-          final amt = (item['amount'] as num?)?.toDouble() ?? 0.0;
-          if (isInc) {
-            totalIncome += amt;
-          } else {
-            totalExpense += amt;
-          }
-        }
-
-        final periodTitle = _resetMode == 'biweekly'
-            ? 'Quincena - ${DateFormat('MMMM yyyy', 'es').format(now).capitalize()}'
-            : DateFormat('MMMM yyyy', 'es').format(now).capitalize();
-
-        final historyList = await LocalGuestStorage.getHistory();
-        historyList.add(
-          HistoryPeriod(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            title: periodTitle,
-            startDate: startOfMonth,
-            endDate: now,
-            totalIncome: totalIncome,
-            totalExpense: totalExpense,
-            balance: totalIncome - totalExpense,
-            closedBy: widget.userName,
-            createdAt: now,
-          ).toJson(),
-        );
-        await LocalGuestStorage.saveHistory(historyList);
-      } else {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('couples')
-            .doc(widget.coupleId)
-            .collection('expenses')
-            .where(
-              'date',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
-            )
-            .get();
-
-        final expenses = snapshot.docs
-            .map((d) => Expense.fromFirestore(d))
-            .toList();
-        for (var e in expenses) {
-          if (e.isIncome) {
-            totalIncome += e.amount;
-          } else {
-            totalExpense += e.amount;
-          }
-        }
-
-        final periodTitle = _resetMode == 'biweekly'
-            ? 'Quincena - ${DateFormat('MMMM yyyy', 'es').format(now).capitalize()}'
-            : DateFormat('MMMM yyyy', 'es').format(now).capitalize();
-
-        await FirebaseFirestore.instance
-            .collection('couples')
-            .doc(widget.coupleId)
-            .collection('history_periods')
-            .add({
-              'title': periodTitle,
-              'startDate': Timestamp.fromDate(startOfMonth),
-              'endDate': Timestamp.fromDate(now),
-              'totalIncome': totalIncome,
-              'totalExpense': totalExpense,
-              'balance': totalIncome - totalExpense,
-              'closedBy': widget.userName,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-        await FirebaseFirestore.instance
-            .collection('couples')
-            .doc(widget.coupleId)
-            .update({'cycle_start_date': FieldValue.serverTimestamp()});
-      }
-
-      if (widget.mode == NidoUsageMode.guest) {
-        await LocalGuestStorage.setCycleStartDate(now);
-      }
+      await NidoRepository.instance.archiveCurrentPeriodAndReset(
+        coupleId: widget.coupleId,
+        mode: widget.mode,
+        userName: widget.userName,
+        resetMode: _resetMode,
+      );
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Cierra diálogo de progreso
+        Navigator.pop(context, true); // Cierra menú devolviendo true para refrescar dashboard
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✨ Periodo archivado e iniciado nuevo ciclo'),
+            content: Text('✨ Periodo archivado e iniciado nuevo ciclo en \$0.00'),
+            backgroundColor: kSecondaryColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Cierra diálogo de progreso si sigue abierto
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al archivar periodo: ${e.toString()}'),
+            backgroundColor: kDangerColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _reiniciarCicloACero() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ctx.nidoSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.restart_alt_rounded, color: Colors.amber, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '¿Reiniciar ciclo a cero?',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: ctx.nidoTextDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Tu saldo y movimientos activos volverán a \$0.00 a partir de ahora, sin guardar ningún resumen en el histórico.',
+          style: TextStyle(fontSize: 13, color: ctx.nidoTextMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: TextStyle(color: ctx.nidoTextMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Reiniciar a Cero'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await NidoRepository.instance.resetCycleWithoutArchiving(
+        coupleId: widget.coupleId,
+        mode: widget.mode,
+      );
+
+      if (mounted) {
+        Navigator.pop(context, true); // Cierra menú con true para refrescar dashboard
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✨ Ciclo reiniciado a \$0.00'),
             backgroundColor: kSecondaryColor,
             behavior: SnackBarBehavior.floating,
           ),
@@ -483,9 +650,10 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al archivar periodo'),
+          SnackBar(
+            content: Text('Error al reiniciar ciclo: ${e.toString()}'),
             backgroundColor: kDangerColor,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -1147,6 +1315,35 @@ class _NidoOptionsMenuState extends State<NidoOptionsMenu> {
                 color: kPrimaryColor,
               ),
               onTap: _cerrarPeriodoYArchivar,
+            ),
+            Divider(color: border, height: 1),
+
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.restart_alt_rounded,
+                  color: Colors.amber,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                'Reiniciar Ciclo a Cero',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: textDark,
+                ),
+              ),
+              subtitle: Text(
+                'Comienza desde \$0.00 sin guardar en el histórico',
+                style: TextStyle(fontSize: 12, color: textMuted),
+              ),
+              onTap: _reiniciarCicloACero,
             ),
             Divider(color: border, height: 1),
 
