@@ -39,17 +39,23 @@ class _PocketsScreenState extends State<PocketsScreen> {
     }
   }
 
-  void _initStreams() {
-    final cycleStart = DateTime(DateTime.now().year, DateTime.now().month, 1);
-    _pocketsStream = NidoRepository.instance.streamPockets(
+  void _initStreams() async {
+    final cycleStart = await NidoRepository.instance.getCycleStartDate(
       coupleId: widget.coupleId,
       mode: widget.mode,
     );
-    _expensesStream = NidoRepository.instance.streamExpenses(
-      coupleId: widget.coupleId,
-      mode: widget.mode,
-      cycleStartDate: cycleStart,
-    );
+    if (!mounted) return;
+    setState(() {
+      _pocketsStream = NidoRepository.instance.streamPockets(
+        coupleId: widget.coupleId,
+        mode: widget.mode,
+      );
+      _expensesStream = NidoRepository.instance.streamExpenses(
+        coupleId: widget.coupleId,
+        mode: widget.mode,
+        cycleStartDate: cycleStart,
+      );
+    });
   }
 
   @override
@@ -67,11 +73,13 @@ class _PocketsScreenState extends State<PocketsScreen> {
   Future<void> _loadGuestData() async {
     final rawPockets = await LocalGuestStorage.getPockets();
     final rawExpenses = await LocalGuestStorage.getExpenses();
+    final cycleStart = await LocalGuestStorage.getCycleStartDate();
 
     if (mounted) {
       setState(() {
         _guestPockets = rawPockets.map((p) => Pocket.fromJson(p)).toList();
-        _guestExpenses = rawExpenses.map((e) => Expense.fromJson(e)).toList();
+        final parsed = rawExpenses.map((e) => Expense.fromJson(e)).toList();
+        _guestExpenses = parsed.where((e) => !e.date.isBefore(cycleStart)).toList();
       });
     }
   }
