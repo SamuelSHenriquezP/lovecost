@@ -84,82 +84,133 @@ class LocalGuestStorage {
     await prefs.setString(_keyCycleStart, dt.toIso8601String());
   }
 
+  static List<Map<String, dynamic>> _parseListSafe(String? raw) {
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        final List<Map<String, dynamic>> result = [];
+        for (final item in decoded) {
+          if (item is Map<String, dynamic>) {
+            result.add(item);
+          } else if (item is Map) {
+            result.add(Map<String, dynamic>.from(item));
+          }
+        }
+        return result;
+      }
+    } catch (e) {
+      debugPrint('Error parsing LocalGuestStorage data: $e');
+    }
+    return [];
+  }
+
   static Future<List<Map<String, dynamic>>> getExpenses() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyExpenses);
-    if (raw == null) return [];
-    final List decoded = jsonDecode(raw);
-    return decoded.cast<Map<String, dynamic>>();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _parseListSafe(prefs.getString(_keyExpenses));
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveExpenses(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyExpenses, jsonEncode(items));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyExpenses, jsonEncode(items));
+    } catch (e) {
+      debugPrint('Error saving guest expenses: $e');
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getShoppingList() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyShopping);
-    if (raw == null) return [];
-    final List decoded = jsonDecode(raw);
-    return decoded.cast<Map<String, dynamic>>();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _parseListSafe(prefs.getString(_keyShopping));
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveShoppingList(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyShopping, jsonEncode(items));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyShopping, jsonEncode(items));
+    } catch (e) {
+      debugPrint('Error saving guest shopping list: $e');
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getSavings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keySavings);
-    if (raw == null) return [];
-    final List decoded = jsonDecode(raw);
-    return decoded.cast<Map<String, dynamic>>();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _parseListSafe(prefs.getString(_keySavings));
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveSavings(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keySavings, jsonEncode(items));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keySavings, jsonEncode(items));
+    } catch (e) {
+      debugPrint('Error saving guest savings: $e');
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyHistory);
-    if (raw == null) return [];
-    final List decoded = jsonDecode(raw);
-    return decoded.cast<Map<String, dynamic>>();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _parseListSafe(prefs.getString(_keyHistory));
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveHistory(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyHistory, jsonEncode(items));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyHistory, jsonEncode(items));
+    } catch (e) {
+      debugPrint('Error saving guest history: $e');
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getCategories() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyCategories);
-    if (raw == null) return [];
-    final List decoded = jsonDecode(raw);
-    return decoded.cast<Map<String, dynamic>>();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _parseListSafe(prefs.getString(_keyCategories));
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveCategories(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyCategories, jsonEncode(items));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyCategories, jsonEncode(items));
+    } catch (e) {
+      debugPrint('Error saving guest categories: $e');
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getPockets() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyPockets);
-    if (raw == null) return [];
-    final List decoded = jsonDecode(raw);
-    return decoded.cast<Map<String, dynamic>>();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return _parseListSafe(prefs.getString(_keyPockets));
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> savePockets(List<Map<String, dynamic>> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyPockets, jsonEncode(items));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyPockets, jsonEncode(items));
+    } catch (e) {
+      debugPrint('Error saving guest pockets: $e');
+    }
   }
 }
 

@@ -86,11 +86,7 @@ class NidoRepository {
             'reactions': expense.reactions,
             if (expense.pocketId != null) 'pocketId': expense.pocketId,
             if (expense.pocketName != null) 'pocketName': expense.pocketName,
-          })
-          .timeout(
-            const Duration(milliseconds: 1500),
-            onTimeout: () {},
-          );
+          });
     }
   }
 
@@ -124,11 +120,7 @@ class NidoRepository {
             'reactions': expense.reactions,
             if (expense.pocketId != null) 'pocketId': expense.pocketId,
             if (expense.pocketName != null) 'pocketName': expense.pocketName,
-          })
-          .timeout(
-            const Duration(milliseconds: 1500),
-            onTimeout: () {},
-          );
+          });
     }
   }
 
